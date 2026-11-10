@@ -8,7 +8,7 @@ import StatusBadge from '../../components/common/StatusBadge';
 import { fmt, nested } from '../../utils/format';
 import { currentListPath, LIST_KEYS, saveListReturn } from '../../navigation/listReturn';
 
-const PROFILE_TYPES = new Set(['practices', 'facilities']);
+const PROFILE_TYPES = new Set(['practices', 'facilities', 'providers']);
 const WORKSPACE_TYPES = new Set(['organizations']);
 
 function listBreadcrumbs(type, scopedId, orgName) {
@@ -121,6 +121,16 @@ export default function RecordPage({ type, scopedId, orgName }) {
           facilityId: row.id,
           practiceId: row.practiceId || undefined,
           organizationId: row.organizationId || scopedId || undefined
+        }
+      });
+      return;
+    }
+    if (type === 'providers') {
+      nav(`/providers/${row.id}/profile`, {
+        state: {
+          returnTo,
+          listKey: 'providers',
+          providerId: row.id
         }
       });
       return;
@@ -250,6 +260,7 @@ export default function RecordPage({ type, scopedId, orgName }) {
               const path = currentListPath(window.location.pathname, window.location.search);
               if (type === 'practices') nav('/practices/new/profile', { state: { returnTo: path, listKey: 'practices' } });
               else if (type === 'facilities') nav('/facilities/new/profile', { state: { returnTo: path, listKey: 'facilities' } });
+              else if (type === 'providers') nav('/providers/new/profile', { state: { returnTo: path, listKey: 'providers' } });
               else start();
             }}
           >

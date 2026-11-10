@@ -25,6 +25,11 @@ export default function DirectoryProfileShell({
   selectedFacilityId,
   onSelectFacility,
   onAddFacility,
+  providers = [],
+  selectedProviderId,
+  onSelectProvider,
+  providersLoading = false,
+  providersError = '',
   steps = [],
   activeStepKey,
   onStepChange,
@@ -55,13 +60,15 @@ export default function DirectoryProfileShell({
   const { setContextualNav, clearContextualNav, setHideTopbar } = useShell();
   const isActive = String(status).toUpperCase() === 'ACTIVE';
   const handlers = useRef({});
-  handlers.current = { onSelectPractice, onSelectFacility, onAddFacility, onStepChange };
+  handlers.current = { onSelectPractice, onSelectFacility, onAddFacility, onSelectProvider, onStepChange };
 
-  const resolvedListKey = listKey || location.state?.listKey || (entityType === 'FACILITY' ? 'facilities' : 'practices');
+  const resolvedListKey = listKey || location.state?.listKey || (
+    entityType === 'FACILITY' ? 'facilities' : entityType === 'PROVIDER' ? 'providers' : 'practices'
+  );
   const resolvedFallback = backFallback
-    || (entityType === 'FACILITY' ? '/facilities' : '/practices');
+    || (entityType === 'FACILITY' ? '/facilities' : entityType === 'PROVIDER' ? '/providers' : '/practices');
   const resolvedBackLabel = backLabel
-    || (entityType === 'FACILITY' ? 'Back to Facilities' : 'Back to Practices');
+    || (entityType === 'FACILITY' ? 'Back to Facilities' : entityType === 'PROVIDER' ? 'Back to Providers' : 'Back to Practices');
 
   useEffect(() => {
     setHideTopbar(true);
@@ -75,6 +82,11 @@ export default function DirectoryProfileShell({
         selectedFacilityId={selectedFacilityId}
         onSelectFacility={(id) => handlers.current.onSelectFacility?.(id)}
         onAddFacility={() => handlers.current.onAddFacility?.()}
+        providers={providers}
+        selectedProviderId={selectedProviderId}
+        onSelectProvider={(id) => handlers.current.onSelectProvider?.(id)}
+        providersLoading={providersLoading}
+        providersError={providersError}
         steps={steps}
         activeStepKey={activeStepKey}
         onStepChange={(key) => handlers.current.onStepChange?.(key)}
@@ -82,6 +94,7 @@ export default function DirectoryProfileShell({
     );
   }, [
     entityType, practices, selectedPracticeId, facilities, selectedFacilityId,
+    providers, selectedProviderId, providersLoading, providersError,
     steps, activeStepKey, setContextualNav, setHideTopbar
   ]);
 
@@ -107,7 +120,9 @@ export default function DirectoryProfileShell({
     { key: 'settings', label: 'Settings', icon: Settings }
   ];
 
-  const actions = rightMode === 'facility' ? facilityQuick : practiceQuick;
+  const actions = rightMode === 'facility' || rightMode === 'provider' ? facilityQuick : practiceQuick;
+  const rightLabel = rightMode === 'facility' ? 'Facility' : rightMode === 'provider' ? 'Provider' : 'Practice';
+  const ringProfile = rightMode === 'facility' || rightMode === 'provider';
 
   return (
     <div className="dir-main">
@@ -139,10 +154,10 @@ export default function DirectoryProfileShell({
         <div className="dir-meta-cards">
           <div className="dir-meta"><span>NPI</span><b>{npi || '—'}</b></div>
           <div className="dir-meta"><span>TAX ID</span><b>{taxId || '—'}</b></div>
-          <div className={`dir-meta profile ${rightMode === 'facility' ? 'ring' : ''}`}>
+          <div className={`dir-meta profile ${ringProfile ? 'ring' : ''}`}>
             <span>PROFILE</span>
             <b className="accent">{Math.round(completion)}% complete</b>
-            {rightMode === 'facility' ? (
+            {ringProfile ? (
               <div
                 className="dir-meta-ring"
                 style={{
@@ -184,12 +199,12 @@ export default function DirectoryProfileShell({
         <aside className="dir-right">
           <div className="dir-right-card">
             <div className="dir-right-head">
-              <span>{rightMode === 'facility' ? 'Facility' : 'Practice'}</span>
+              <span>{rightLabel}</span>
               <b>{Math.round(completion)}%</b>
             </div>
             <ProgressBar value={completion} showPercent={false} />
             <p className="dir-right-copy">
-              {Math.round(completion)}% profile completion. Incomplete {rightMode === 'facility' ? 'facilities' : 'practices'} remain usable and can receive targeted completion requests.
+              {Math.round(completion)}% profile completion. Incomplete {rightMode === 'provider' ? 'providers' : rightMode === 'facility' ? 'facilities' : 'practices'} remain usable and can receive targeted completion requests.
             </p>
           </div>
 
@@ -227,7 +242,7 @@ export default function DirectoryProfileShell({
                 {!owners.length && <div className="dir-empty">No owners yet</div>}
               </div>
             </div>
-          ) : (
+          ) : rightMode === 'provider' || rightMode === 'facility' ? (
             <div className="dir-right-card attention">
               <div className="dir-right-head">
                 <span>Credential attention</span>
@@ -246,10 +261,10 @@ export default function DirectoryProfileShell({
                 {!attention?.expiringSoon?.length && <div className="dir-empty">No expiring credentials</div>}
               </div>
             </div>
-          )}
+          ) : null}
 
           <button type="button" className="request-info-btn" onClick={onRequestInfo}>
-            <Send size={16} /> Request {rightMode === 'facility' ? 'facility' : 'practice'} info
+            <Send size={16} /> Request {rightMode === 'facility' ? 'facility' : rightMode === 'provider' ? 'provider' : 'practice'} info
           </button>
         </aside>
       </div>

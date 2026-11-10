@@ -39,6 +39,8 @@ export default function FacilityProfile() {
   const [facilityId, setFacilityId] = useState(isNew ? null : id);
   const [detail, setDetail] = useState(null);
   const [affiliations, setAffiliations] = useState([]);
+  const [providersLoading, setProvidersLoading] = useState(!isNew);
+  const [providersError, setProvidersError] = useState('');
   const [contacts, setContacts] = useState([]);
   const [attention, setAttention] = useState({ counts: {}, expiringSoon: [] });
   const [contactTab, setContactTab] = useState('ORGANIZATION');
@@ -48,6 +50,38 @@ export default function FacilityProfile() {
   const [providers, setProviders] = useState([]);
   const [saving, setSaving] = useState(false);
   const dirty = !!editModal;
+
+  const facilityProviders = useMemo(() => (
+    affiliations
+      .map(a => a.provider || (a.providerId ? { id: a.providerId } : null))
+      .filter(Boolean)
+      .map(p => ({
+        id: p.id,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        primarySpecialty: p.primarySpecialty,
+        status: p.status
+      }))
+  ), [affiliations]);
+
+  function openAssignedProvider(providerId) {
+    if (!providerId) return;
+    const returnTo = currentListPath(
+      `/facilities/${facilityId}/profile`,
+      `?step=${stepKey || 'providers'}`
+    );
+    saveListReturn('providers', '/providers');
+    nav(`/providers/${providerId}/profile`, {
+      state: {
+        returnTo,
+        listKey: 'facilities',
+        facilityId,
+        practiceId: detail?.practiceId || location.state?.practiceId,
+        organizationId: detail?.organizationId || location.state?.organizationId,
+        providerId
+      }
+    });
+  }
 
   useEffect(() => {
     if (!dirty) return undefined;
@@ -71,22 +105,62 @@ export default function FacilityProfile() {
     setFacilities(f.data);
   }
 
-  async function loadDetail(fid) {
-    if (!fid) return;
-    const d = (await api.get(`/directory/facilities/${fid}/detail`)).data;
-    setDetail(d);
-    setFacilityId(d.id);
-    setAffiliations(d.providers || []);
-    setContacts(d.contacts || []);
+  async function loadDetail(fid, options = {}) {
+    const { silent = false, isCurrent = () => true } = options;
+    if (!fid) {
+      if (isCurrent()) {
+        setAffiliations([]);
+        setProvidersLoading(false);
+        setProvidersError('');
+      }
+      return;
+    }
+    if (!silent && isCurrent()) {
+      setProvidersLoading(true);
+      setProvidersError('');
+      // Never keep the previous facility's providers visible while switching.
+      setAffiliations([]);
+    }
     try {
-      const attn = (await api.get('/credentials/attention', { params: { facilityId: d.id } })).data;
-      setAttention(attn);
-    } catch { /* optional */ }
+      const d = (await api.get(`/directory/facilities/${fid}/detail`)).data;
+      if (!isCurrent()) return d;
+      setDetail(d);
+      setFacilityId(d.id);
+      setAffiliations(d.providers || []);
+      setContacts(d.contacts || []);
+      setProvidersError('');
+      try {
+        const attn = (await api.get('/credentials/attention', { params: { facilityId: d.id } })).data;
+        if (isCurrent()) setAttention(attn);
+      } catch { /* optional */ }
+      return d;
+    } catch (e) {
+      if (isCurrent()) {
+        setAffiliations([]);
+        setProvidersError(e.response?.data?.error || 'Could not load providers for this facility.');
+      }
+      throw e;
+    } finally {
+      if (isCurrent()) setProvidersLoading(false);
+    }
   }
 
   useEffect(() => {
-    loadLists().catch(e => setError(e.response?.data?.error || 'Could not load facilities.'));
-    if (!isNew) loadDetail(id).catch(e => setError(e.response?.data?.error || 'Could not load facility.'));
+    let active = true;
+    const isCurrent = () => active;
+    loadLists().catch(e => {
+      if (active) setError(e.response?.data?.error || 'Could not load facilities.');
+    });
+    if (!isNew) {
+      loadDetail(id, { isCurrent }).catch(e => {
+        if (active) setError(e.response?.data?.error || 'Could not load facility.');
+      });
+    } else {
+      setAffiliations([]);
+      setProvidersLoading(false);
+      setProvidersError('');
+    }
+    return () => { active = false; };
   }, [id]);
 
   const schedule = useMemo(() => {
@@ -127,7 +201,7 @@ export default function FacilityProfile() {
         nav(`/facilities/${saved.id}/profile?step=${stepKey}`, { replace: true });
       }
       if (body.schedule) await api.put(`/directory/facilities/${saved.id}/schedule`, { schedule: body.schedule });
-      await loadDetail(saved.id || facilityId);
+      await loadDetail(saved.id || facilityId, { silent: true });
       await loadLists();
       setEditModal(null);
     } catch (e) {
@@ -144,28 +218,28 @@ export default function FacilityProfile() {
       return;
     }
     await api.post('/directory/provider-facilities', { providerId: p.id, facilityId: fid, approvalStatus: 'Pending' });
-    await loadDetail(fid);
+    await loadDetail(fid, { silent: true });
     setEditModal(null);
   }
 
   async function removeAff(providerId) {
     if (!confirm('Remove affiliation? Provider record will not be deleted.')) return;
     await api.delete(`/directory/provider-facilities/${providerId}/${facilityId}`);
-    await loadDetail(facilityId);
+    await loadDetail(facilityId, { silent: true });
   }
 
   async function saveContact(form) {
     let fid = facilityId;
     if (!fid) { setError('Save facility first.'); return; }
     await api.post('/directory/facility-contacts', { facilityId: fid, ...form });
-    await loadDetail(fid);
+    await loadDetail(fid, { silent: true });
     setEditModal(null);
   }
 
   async function deleteContact(cid) {
     if (!confirm('Delete contact?')) return;
     await api.delete(`/directory/facility-contacts/${cid}`);
-    await loadDetail(facilityId);
+    await loadDetail(facilityId, { silent: true });
   }
 
   const addr = detail?.address || {};
@@ -215,6 +289,10 @@ export default function FacilityProfile() {
       facilities={facilities}
       selectedFacilityId={facilityId || ''}
       onSelectFacility={(fid) => nav(`/facilities/${fid}/profile?step=${stepKey}`)}
+      providers={facilityProviders}
+      providersLoading={providersLoading}
+      providersError={providersError}
+      onSelectProvider={(providerId) => openAssignedProvider(providerId)}
       steps={STEPS}
       activeStepKey={stepKey}
       onStepChange={setStep}
@@ -351,23 +429,7 @@ export default function FacilityProfile() {
                         <button
                           className="icon-round"
                           title="View provider"
-                          onClick={() => {
-                            const returnTo = currentListPath(
-                              `/facilities/${facilityId}/profile`,
-                              '?step=providers'
-                            );
-                            saveListReturn('providers', '/providers');
-                            nav(`/providers?edit=${a.providerId}&q=${encodeURIComponent(`${a.provider?.firstName || ''} ${a.provider?.lastName || ''}`.trim())}`, {
-                              state: {
-                                returnTo,
-                                listKey: 'facilities',
-                                facilityId,
-                                practiceId: detail?.practiceId,
-                                organizationId: detail?.organizationId,
-                                providerId: a.providerId
-                              }
-                            });
-                          }}
+                          onClick={() => openAssignedProvider(a.providerId)}
                         >
                           <Eye size={14} />
                         </button>

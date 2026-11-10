@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Bell, Menu, Settings, X } from 'lucide-react';
+import { Menu, Settings, X } from 'lucide-react';
 import IconRail from './IconRail';
 import AppSidebar from './AppSidebar';
+import NotificationBell from '../common/NotificationBell';
+import GlobalSearch from '../common/GlobalSearch';
 import { ShellProvider, useShell } from './ShellContext';
 import { NavigationHistoryProvider } from '../../navigation/NavigationHistoryContext';
 import { roleLabel } from '../../utils/format';
@@ -49,13 +51,12 @@ function ShellChrome({ children }) {
             <div className="crumb">
               eClinicAssist <span>/</span> <b style={{ textTransform: 'capitalize' }}>{crumbLabel}</b>
             </div>
+            <GlobalSearch />
             <div className="topbar-right">
               <button type="button" className="icon-button" title="Settings" aria-label="Settings" onClick={() => nav('/employees')}>
                 <Settings size={17} />
               </button>
-              <button type="button" className="icon-button" title="Notifications" aria-label="Notifications">
-                <Bell size={17} />
-              </button>
+              <NotificationBell />
               <div className="shell-user-chip">
                 <div className="top-avatar">{(user.name || 'U').slice(0, 1).toUpperCase()}</div>
                 <div className="shell-user-meta">

@@ -16,7 +16,7 @@ export function fullPath(pathname, search = '') {
 /** Strip wizard-only params so Previous/Next steps don't pollute Back. */
 export function logicalKey(pathname, search = '') {
   const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
-  if (/^\/(practices|facilities)\/[^/]+\/profile/.test(pathname)) {
+  if (/^\/(practices|facilities|providers)\/[^/]+\/profile/.test(pathname)) {
     params.delete('step');
   }
   // edit= is a deep-link opener, not a distinct page for Back
@@ -100,6 +100,12 @@ export function contextualParent(pathname, hints = {}) {
     return '/practices';
   }
 
+  const provNew = pathname.match(/^\/providers\/new\/profile/);
+  if (provNew) return '/providers';
+
+  const prov = pathname.match(/^\/providers\/([^/]+)\/profile/);
+  if (prov) return '/providers';
+
   const org = pathname.match(/^\/organizations\/([^/]+)/);
   if (org) return '/organizations';
 
@@ -121,6 +127,7 @@ export function backLabelForPath(path, fallback = 'Back') {
   if (p.startsWith('/practices/') && p.includes('/profile')) return 'Back to Practice';
   if (p.startsWith('/facilities/') && p.includes('/credentials')) return 'Back to Facility Credentials';
   if (p.startsWith('/facilities/') && p.includes('/profile')) return 'Back to Facility';
+  if (p.startsWith('/providers/') && p.includes('/profile')) return 'Back to Provider';
   if (p === '/organizations') return 'Back to Organizations';
   if (p === '/practices') return 'Back to Practices';
   if (p === '/facilities') return 'Back to Facilities';

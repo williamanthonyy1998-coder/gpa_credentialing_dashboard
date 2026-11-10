@@ -14,6 +14,63 @@ import EmployeesPage from '../employees/EmployeesPage';
 import AuditPage from '../audit/AuditPage';
 import { LIST_KEYS } from '../../navigation/listReturn';
 
+const MANAGEMENT_CARDS = [
+  {
+    key: 'practices',
+    label: 'Manage Practices',
+    description: 'View and maintain practices linked to this organization.',
+    Icon: Landmark
+  },
+  {
+    key: 'providers',
+    label: 'Manage Providers',
+    description: 'Review provider affiliations and shared master profiles.',
+    Icon: Stethoscope
+  },
+  {
+    key: 'facilities',
+    label: 'Manage Facilities',
+    description: 'Manage facility locations associated with this organization.',
+    Icon: MapPin
+  },
+  {
+    key: 'payers',
+    label: 'Payer Directory',
+    description: 'Browse payer relationships used across this organization.',
+    Icon: ShieldCheck
+  },
+  {
+    key: 'enrollments',
+    label: 'Payer Enrollment',
+    description: 'Track enrollment applications and payer follow-ups.',
+    Icon: CreditCard
+  },
+  {
+    key: 'cases',
+    label: 'Credentialing Cases',
+    description: 'Open and manage credentialing cases for this organization.',
+    Icon: ClipboardCheck
+  },
+  {
+    key: 'documents',
+    label: 'Documents',
+    description: 'Access organization documents and supporting files.',
+    Icon: FileText
+  },
+  {
+    key: 'employees',
+    label: 'Employees & HR',
+    description: 'Manage employees and HR records for this organization.',
+    Icon: Users
+  },
+  {
+    key: 'tasks',
+    label: 'Tasks & Workflow',
+    description: 'Review tasks, assignments, and operational workflow.',
+    Icon: CheckSquare
+  }
+];
+
 function OrganizationProfile({ org }) {
   const fields = [
     ['Legal name', org?.legalName], ['DBA', org?.dba], ['Tax ID', org?.taxId],
@@ -41,51 +98,108 @@ function OrganizationProfile({ org }) {
   );
 }
 
+function InfoField({ label, value }) {
+  return (
+    <div className="org-info-field">
+      <span>{label}</span>
+      <b>{value || '—'}</b>
+    </div>
+  );
+}
+
 function OrganizationOverview({ org, stats, id }) {
   const nav = useNavigate();
-  const quick = [
-    ['Manage practices', 'practices', Landmark],
-    ['Manage providers', 'providers', Stethoscope],
-    ['Manage facilities', 'facilities', MapPin],
-    ['Payer directory', 'payers', ShieldCheck],
-    ['Payer enrollment', 'enrollments', CreditCard],
-    ['Credentialing cases', 'cases', ClipboardCheck],
-    ['Documents', 'documents', FileText],
-    ['Employees & HR', 'employees', Users],
-    ['Tasks & workflow', 'tasks', CheckSquare]
-  ];
+  const displayName = org?.dba || org?.legalName || 'Organization';
+
   return (
     <div className="org-overview-content">
-      <div className="org-welcome panel">
-        <div>
-          <span className="eyebrow">WORKSPACE OVERVIEW</span>
-          <h2>{org?.dba || org?.legalName || 'Organization'}</h2>
-          <p>All records and operational work for this organization are managed from this workspace.</p>
+      <section className="org-info-card panel">
+        <div className="panel-heading">
+          <div>
+            <h2>Organization Information</h2>
+            <p>Core identity and contact details for {displayName}.</p>
+          </div>
+          {org && <StatusBadge value={org.status} />}
         </div>
-        <div className="org-status-block">
-          <StatusBadge value={org?.status} />
-          <small>{org?.phone || 'No phone added'}<br />{org?.email || 'No email added'}</small>
+        <div className="org-info-grid">
+          <InfoField label="Organization name" value={displayName} />
+          <InfoField label="Legal name" value={org?.legalName} />
+          <InfoField label="DBA" value={org?.dba} />
+          <InfoField label="Status" value={org?.status} />
+          <InfoField label="Tax ID" value={org?.taxId} />
+          <InfoField label="Email" value={org?.email} />
+          <InfoField label="Phone" value={org?.phone} />
+          <InfoField label="Fax" value={org?.fax} />
+          <InfoField label="Primary contact" value={org?.contactName} />
+          <InfoField label="Contact title" value={org?.contactTitle} />
+          <InfoField
+            label="Established"
+            value={org?.establishedAt ? new Date(org.establishedAt).toLocaleDateString() : null}
+          />
         </div>
-      </div>
-      <div className="org-quick-grid">
-        {quick.map(([label, key, Icon]) => (
-          <button key={key} className="org-quick-card" onClick={() => nav(`/organizations/${id}/${key}`)}>
-            <span className="org-quick-icon"><Icon size={19} /></span>
-            <b>{label}</b>
-            <span>Open section <span aria-hidden="true">→</span></span>
-          </button>
-        ))}
-      </div>
-      <div className="note-strip">
-        <ShieldCheck size={18} />
-        <div>
-          <b>Organization-centered records</b>
-          <span>Use the same master provider, facility, payer and enrollment records across the organization. Affiliations connect shared providers without creating duplicate profiles.</span>
+      </section>
+
+      <section className="org-management-section">
+        <div className="org-section-head">
+          <div>
+            <h2>Organization Management</h2>
+            <p>Open a section to manage records connected to this organization.</p>
+          </div>
         </div>
-      </div>
-      <div className="org-stat-inline muted-note">
-        Snapshot · Practices {stats.practices ?? 0} · Facilities {stats.facilities ?? 0} · Provider affiliations {stats.providerOrganizations ?? 0}
-      </div>
+        <div className="org-quick-grid">
+          {MANAGEMENT_CARDS.map(({ key, label, description, Icon }) => (
+            <button
+              key={key}
+              type="button"
+              className="org-quick-card"
+              onClick={() => nav(`/organizations/${id}/${key}`)}
+            >
+              <span className="org-quick-icon"><Icon size={20} strokeWidth={1.75} /></span>
+              <b>{label}</b>
+              <p>{description}</p>
+              <span className="org-quick-action">Open section <span aria-hidden="true">→</span></span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="org-records-panel panel">
+        <div className="org-records-inner">
+          <span className="org-records-icon"><ShieldCheck size={22} strokeWidth={1.75} /></span>
+          <div>
+            <h3>Organization-centered records</h3>
+            <p>
+              Practices, providers, facilities, and payers connect to this organization through shared master
+              records and affiliations. Provider affiliations reuse the same provider profiles across the
+              organization without creating duplicate records. Facilities and practices remain linked through
+              the organization context used by enrollments, credentialing cases, documents, and tasks.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="org-snapshot panel">
+        <div className="panel-heading">
+          <div>
+            <h2>Organization Snapshot</h2>
+            <p>Live counts from records currently linked to this organization.</p>
+          </div>
+        </div>
+        <div className="org-snapshot-grid">
+          <div className="org-snapshot-item">
+            <span>Total practices</span>
+            <b>{stats.practices ?? 0}</b>
+          </div>
+          <div className="org-snapshot-item">
+            <span>Total facilities</span>
+            <b>{stats.facilities ?? 0}</b>
+          </div>
+          <div className="org-snapshot-item">
+            <span>Total provider affiliations</span>
+            <b>{stats.providerOrganizations ?? 0}</b>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
@@ -93,7 +207,6 @@ function OrganizationOverview({ org, stats, id }) {
 export default function OrganizationWorkspace() {
   const { id } = useParams();
   const location = useLocation();
-  const nav = useNavigate();
   const [org, setOrg] = useState(null);
   const [stats, setStats] = useState({});
   const [error, setError] = useState('');
@@ -130,10 +243,19 @@ export default function OrganizationWorkspace() {
     ...(section !== 'overview' ? [{ label: sectionMeta?.label || section }] : [])
   ];
 
+  const kpiCards = [
+    ['Practices', stats.practices, Landmark],
+    ['Facilities', stats.facilities, MapPin],
+    ['Provider Affiliations', stats.providerOrganizations, Stethoscope],
+    ['Payer Enrollments', stats.enrollments, CreditCard],
+    ['Credentialing Cases', stats.cases, ClipboardCheck],
+    ['Documents', stats.documents, FileText]
+  ];
+
   return (
     <div className="page org-workspace">
       <div className="org-workspace-head">
-        <div>
+        <div className="org-workspace-head-main">
           <BackButton
             label="Back to Organizations"
             fallbackHref="/organizations"
@@ -145,37 +267,38 @@ export default function OrganizationWorkspace() {
           <AppBreadcrumbs crumbs={crumbs} />
           <span className="eyebrow">ORGANIZATION WORKSPACE</span>
           <h1>{loading ? 'Loading organization…' : title}</h1>
-          <p>
-            {org?.legalName && org?.dba ? `${org.legalName} · ` : ''}
-            {org?.taxId ? `Tax ID ${org.taxId} · ` : ''}
-            {org?.email || 'Manage this organization’s people, locations, payer relationships and operations.'}
-          </p>
+          <div className="org-head-meta">
+            {org?.taxId && <span>Tax ID {org.taxId}</span>}
+            {org?.email && <span>{org.email}</span>}
+            {org?.phone && <span>{org.phone}</span>}
+            {!org?.taxId && !org?.email && !org?.phone && (
+              <span>Manage this organization’s people, locations, payer relationships and operations.</span>
+            )}
+          </div>
         </div>
         <div className="org-head-actions">
           {org && <StatusBadge value={org.status} />}
-          <button className="secondary" onClick={load}><RefreshCw size={15} /> Refresh</button>
+          <button type="button" className="secondary" onClick={load}>
+            <RefreshCw size={15} /> Refresh
+          </button>
         </div>
       </div>
+
       {error && <div className="error banner">{error}</div>}
+
       {!error && (
         <>
           <div className="org-stat-grid">
-            {[
-              ['Practices', stats.practices, Landmark],
-              ['Facilities', stats.facilities, MapPin],
-              ['Provider affiliations', stats.providerOrganizations, Stethoscope],
-              ['Payer enrollments', stats.enrollments, CreditCard],
-              ['Credentialing cases', stats.cases, ClipboardCheck],
-              ['Documents', stats.documents, FileText]
-            ].map(([label, value, Icon]) => (
+            {kpiCards.map(([label, value, Icon]) => (
               <div className="org-stat" key={label}>
-                <Icon size={18} />
-                <span>{label}</span>
+                <span className="org-stat-icon"><Icon size={18} strokeWidth={1.75} /></span>
+                <span className="org-stat-label">{label}</span>
                 <b>{loading ? '—' : value ?? 0}</b>
               </div>
             ))}
           </div>
-          <div className="org-workspace-layout org-workspace-layout-unified">
+
+          <div className="org-workspace-layout">
             <section className="org-section-content">
               {section === 'overview' && <OrganizationOverview org={org} stats={stats} id={id} />}
               {section === 'profile' && <OrganizationProfile org={org} />}

@@ -9,9 +9,14 @@ import EmployeesPage from '../modules/employees/EmployeesPage';
 import AuditPage from '../modules/audit/AuditPage';
 import PracticeProfile from '../modules/practices/PracticeProfile';
 import FacilityProfile from '../modules/facilities/FacilityProfile';
+import ProviderProfile from '../modules/providers/ProviderProfile';
 import CredentialsCenter from '../modules/documents/CredentialsCenter';
 import FacilityCredentials from '../modules/documents/FacilityCredentials';
+import EnrollmentsPage from '../modules/enrollments/EnrollmentsPage';
+import IntakePage from '../modules/intake/IntakePage';
 import { config } from '../config/resources';
+
+const GENERIC_RECORD_TYPES = Object.keys(config).filter(t => t !== 'enrollments');
 
 function Protected({ children }) {
   return localStorage.getItem('credentialing_token') ? children : <Navigate to="/login" replace />;
@@ -32,12 +37,16 @@ export default function AppRoutes() {
                 <Route path="/practices/:id/profile" element={<PracticeProfile />} />
                 <Route path="/facilities/new/profile" element={<FacilityProfile />} />
                 <Route path="/facilities/:id/profile" element={<FacilityProfile />} />
+                <Route path="/providers/new/profile" element={<ProviderProfile />} />
+                <Route path="/providers/:id/profile" element={<ProviderProfile />} />
                 <Route path="/facilities/:id/credentials" element={<FacilityCredentials />} />
                 <Route path="/organizations/:id/*" element={<OrganizationWorkspace />} />
                 <Route path="/credentials" element={<CredentialsCenter />} />
                 <Route path="/audit" element={<AuditPage />} />
                 <Route path="/employees" element={<EmployeesPage />} />
-                {Object.keys(config).map(type => (
+                <Route path="/enrollments" element={<EnrollmentsPage />} />
+                <Route path="/intake" element={<IntakePage />} />
+                {GENERIC_RECORD_TYPES.map(type => (
                   <Route key={type} path={`/${type}`} element={<RecordPage type={type} />} />
                 ))}
                 <Route path="*" element={<Navigate to="/" replace />} />

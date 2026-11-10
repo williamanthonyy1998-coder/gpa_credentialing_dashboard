@@ -6,6 +6,7 @@ export const menu = [
   { label: 'Facilities', path: '/facilities', icon: 'MapPin' },
   { label: 'Payers', path: '/payers', icon: 'ShieldCheck' },
   { label: 'Payer Enrollment', path: '/enrollments', icon: 'CreditCard' },
+  { label: 'Intake', path: '/intake', icon: 'Inbox' },
   { label: 'Credentialing', path: '/cases', icon: 'ClipboardCheck' },
   { label: 'Credentials', path: '/credentials', icon: 'FileText' },
   { label: 'Documents', path: '/documents', icon: 'FileText' },

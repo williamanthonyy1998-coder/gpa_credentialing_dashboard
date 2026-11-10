@@ -229,7 +229,7 @@ export default function CredentialsCenter() {
                     <td>
                       <div className="row-actions">
                         {row.storageKey && <button className="small-action" onClick={() => download(row)}><Download size={12} /> Download</button>}
-                        <label className="small-action upload-action"><Upload size={12} /> Upload<input hidden type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xlsx" onChange={e => upload(row, e.target.files?.[0])} /></label>
+                        <label className="small-action upload-action"><Upload size={12} /> Upload<input hidden type="file" accept={category === 'other' || row.category === 'other' || category === 'agreements' || row.category === 'agreements' ? '.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png' : '.pdf,.jpg,.jpeg,.png,.doc,.docx,.xlsx'} onChange={e => upload(row, e.target.files?.[0])} /></label>
                         <button className="small-action" onClick={() => { setEditing(row); setModal(true); }}>Edit</button>
                         <button className="small-action" onClick={() => toggleIgnore(row)}>{row.ignored ? 'Unignore' : 'Ignore'}</button>
                         <button className="small-action danger-text" onClick={() => remove(row)}><Trash2 size={12} /></button>
@@ -279,7 +279,14 @@ export default function CredentialsCenter() {
               <label>Type / Document Type<input name="type" required defaultValue={editing?.type || ''} /></label>
               <label>Issued At<input type="date" name="issuedAt" defaultValue={editing?.issuedAt ? String(editing.issuedAt).slice(0, 10) : ''} /></label>
               <label>Expiration Date<input type="date" name="expiresAt" defaultValue={editing?.expiresAt ? String(editing.expiresAt).slice(0, 10) : ''} /></label>
-              <label>Warning days<input type="number" min="1" name="warningDays" defaultValue={editing?.warningDays || 30} /></label>
+              <label>Warning Days
+                <select name="warningDays" defaultValue={editing?.warningDays || 30}>
+                  <option value={30}>30 Days</option>
+                  <option value={60}>60 Days</option>
+                  <option value={90}>90 Days</option>
+                  <option value={120}>120 Days</option>
+                </select>
+              </label>
               <label>Organization
                 <select name="organizationId" defaultValue={editing?.organizationId || filters.organizationId || ''}>
                   <option value="">Optional…</option>
