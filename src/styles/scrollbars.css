@@ -1,0 +1,260 @@
+/* VIP Light — shared thin scrollbars (Chrome, Edge, Safari, Firefox)
+   Token vars: --scrollbar-* in tokens.css
+   Hover / focus / .is-scrolling (scrollReveal.js) reveals thumbs.
+   Touch / coarse pointers keep thumbs always visible. */
+
+/* All themed scroll containers — add new scrollable regions here once. */
+.scroll-region,
+.shell-content,
+.app-sidebar-scroll,
+.icon-rail,
+.table-scroll,
+.record-modal,
+.modal-body,
+.login-page,
+.dir-provider-list,
+.enr-drawer-body,
+.enr-composer,
+.notify-list,
+.global-search-dropdown,
+.ins-doc-pane,
+.ins-form-pane,
+.ins-preview-frame,
+.msel-dropdown {
+  --_sb-thumb: transparent;
+  --_sb-track: transparent;
+  scrollbar-width: thin;
+  scrollbar-color: var(--_sb-thumb) var(--_sb-track);
+}
+
+.scroll-region:hover,
+.scroll-region:focus-within,
+.scroll-region.is-scrolling,
+.shell-content:hover,
+.shell-content:focus-within,
+.shell-content.is-scrolling,
+.app-sidebar-scroll:hover,
+.app-sidebar-scroll:focus-within,
+.app-sidebar-scroll.is-scrolling,
+.icon-rail:hover,
+.icon-rail:focus-within,
+.icon-rail.is-scrolling,
+.table-scroll:hover,
+.table-scroll:focus-within,
+.table-scroll.is-scrolling,
+.record-modal:hover,
+.record-modal:focus-within,
+.record-modal.is-scrolling,
+.modal-body:hover,
+.modal-body:focus-within,
+.modal-body.is-scrolling,
+.login-page:hover,
+.login-page:focus-within,
+.login-page.is-scrolling,
+.dir-provider-list:hover,
+.dir-provider-list:focus-within,
+.dir-provider-list.is-scrolling,
+.enr-drawer-body:hover,
+.enr-drawer-body:focus-within,
+.enr-drawer-body.is-scrolling,
+.enr-composer:hover,
+.enr-composer:focus-within,
+.enr-composer.is-scrolling,
+.notify-list:hover,
+.notify-list:focus-within,
+.notify-list.is-scrolling,
+.global-search-dropdown:hover,
+.global-search-dropdown:focus-within,
+.global-search-dropdown.is-scrolling,
+.ins-doc-pane:hover,
+.ins-doc-pane:focus-within,
+.ins-doc-pane.is-scrolling,
+.ins-form-pane:hover,
+.ins-form-pane:focus-within,
+.ins-form-pane.is-scrolling,
+.ins-preview-frame:hover,
+.ins-preview-frame:focus-within,
+.ins-preview-frame.is-scrolling,
+.msel-dropdown:hover,
+.msel-dropdown:focus-within,
+.msel-dropdown.is-scrolling {
+  --_sb-thumb: var(--scrollbar-thumb);
+  --_sb-track: var(--scrollbar-track);
+}
+
+.scroll-region::-webkit-scrollbar,
+.shell-content::-webkit-scrollbar,
+.app-sidebar-scroll::-webkit-scrollbar,
+.icon-rail::-webkit-scrollbar,
+.table-scroll::-webkit-scrollbar,
+.record-modal::-webkit-scrollbar,
+.modal-body::-webkit-scrollbar,
+.login-page::-webkit-scrollbar,
+.dir-provider-list::-webkit-scrollbar,
+.enr-drawer-body::-webkit-scrollbar,
+.enr-composer::-webkit-scrollbar,
+.notify-list::-webkit-scrollbar,
+.global-search-dropdown::-webkit-scrollbar,
+.ins-doc-pane::-webkit-scrollbar,
+.ins-form-pane::-webkit-scrollbar,
+.ins-preview-frame::-webkit-scrollbar,
+.msel-dropdown::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+
+.scroll-region::-webkit-scrollbar-track,
+.shell-content::-webkit-scrollbar-track,
+.app-sidebar-scroll::-webkit-scrollbar-track,
+.icon-rail::-webkit-scrollbar-track,
+.table-scroll::-webkit-scrollbar-track,
+.record-modal::-webkit-scrollbar-track,
+.modal-body::-webkit-scrollbar-track,
+.login-page::-webkit-scrollbar-track,
+.dir-provider-list::-webkit-scrollbar-track,
+.enr-drawer-body::-webkit-scrollbar-track,
+.enr-composer::-webkit-scrollbar-track,
+.notify-list::-webkit-scrollbar-track,
+.global-search-dropdown::-webkit-scrollbar-track,
+.ins-doc-pane::-webkit-scrollbar-track,
+.ins-form-pane::-webkit-scrollbar-track,
+.ins-preview-frame::-webkit-scrollbar-track,
+.msel-dropdown::-webkit-scrollbar-track {
+  background: var(--_sb-track);
+  border-radius: 999px;
+}
+
+.scroll-region::-webkit-scrollbar-thumb,
+.shell-content::-webkit-scrollbar-thumb,
+.app-sidebar-scroll::-webkit-scrollbar-thumb,
+.icon-rail::-webkit-scrollbar-thumb,
+.table-scroll::-webkit-scrollbar-thumb,
+.record-modal::-webkit-scrollbar-thumb,
+.modal-body::-webkit-scrollbar-thumb,
+.login-page::-webkit-scrollbar-thumb,
+.dir-provider-list::-webkit-scrollbar-thumb,
+.enr-drawer-body::-webkit-scrollbar-thumb,
+.enr-composer::-webkit-scrollbar-thumb,
+.notify-list::-webkit-scrollbar-thumb,
+.global-search-dropdown::-webkit-scrollbar-thumb,
+.ins-doc-pane::-webkit-scrollbar-thumb,
+.ins-form-pane::-webkit-scrollbar-thumb,
+.ins-preview-frame::-webkit-scrollbar-thumb,
+.msel-dropdown::-webkit-scrollbar-thumb {
+  background: var(--_sb-thumb);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+
+.scroll-region::-webkit-scrollbar-thumb:hover,
+.shell-content::-webkit-scrollbar-thumb:hover,
+.app-sidebar-scroll::-webkit-scrollbar-thumb:hover,
+.icon-rail::-webkit-scrollbar-thumb:hover,
+.table-scroll::-webkit-scrollbar-thumb:hover,
+.record-modal::-webkit-scrollbar-thumb:hover,
+.modal-body::-webkit-scrollbar-thumb:hover,
+.login-page::-webkit-scrollbar-thumb:hover,
+.dir-provider-list::-webkit-scrollbar-thumb:hover,
+.enr-drawer-body::-webkit-scrollbar-thumb:hover,
+.enr-composer::-webkit-scrollbar-thumb:hover,
+.notify-list::-webkit-scrollbar-thumb:hover,
+.global-search-dropdown::-webkit-scrollbar-thumb:hover,
+.ins-doc-pane::-webkit-scrollbar-thumb:hover,
+.ins-form-pane::-webkit-scrollbar-thumb:hover,
+.ins-preview-frame::-webkit-scrollbar-thumb:hover,
+.msel-dropdown::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
+}
+
+.scroll-region::-webkit-scrollbar-thumb:active,
+.shell-content::-webkit-scrollbar-thumb:active,
+.app-sidebar-scroll::-webkit-scrollbar-thumb:active,
+.icon-rail::-webkit-scrollbar-thumb:active,
+.table-scroll::-webkit-scrollbar-thumb:active,
+.record-modal::-webkit-scrollbar-thumb:active,
+.modal-body::-webkit-scrollbar-thumb:active,
+.login-page::-webkit-scrollbar-thumb:active,
+.dir-provider-list::-webkit-scrollbar-thumb:active,
+.enr-drawer-body::-webkit-scrollbar-thumb:active,
+.enr-composer::-webkit-scrollbar-thumb:active,
+.notify-list::-webkit-scrollbar-thumb:active,
+.global-search-dropdown::-webkit-scrollbar-thumb:active,
+.ins-doc-pane::-webkit-scrollbar-thumb:active,
+.ins-form-pane::-webkit-scrollbar-thumb:active,
+.ins-preview-frame::-webkit-scrollbar-thumb:active,
+.msel-dropdown::-webkit-scrollbar-thumb:active {
+  background: var(--scrollbar-thumb-active);
+  background-clip: padding-box;
+}
+
+.scroll-region::-webkit-scrollbar-corner,
+.shell-content::-webkit-scrollbar-corner,
+.app-sidebar-scroll::-webkit-scrollbar-corner,
+.icon-rail::-webkit-scrollbar-corner,
+.table-scroll::-webkit-scrollbar-corner,
+.record-modal::-webkit-scrollbar-corner,
+.modal-body::-webkit-scrollbar-corner,
+.login-page::-webkit-scrollbar-corner,
+.dir-provider-list::-webkit-scrollbar-corner,
+.enr-drawer-body::-webkit-scrollbar-corner,
+.enr-composer::-webkit-scrollbar-corner,
+.notify-list::-webkit-scrollbar-corner,
+.global-search-dropdown::-webkit-scrollbar-corner,
+.ins-doc-pane::-webkit-scrollbar-corner,
+.ins-form-pane::-webkit-scrollbar-corner,
+.ins-preview-frame::-webkit-scrollbar-corner,
+.msel-dropdown::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Always-visible variant (rare — prefer .scroll-region + hover reveal) */
+.scroll-region-always {
+  --_sb-thumb: var(--scrollbar-thumb);
+  --_sb-track: var(--scrollbar-track);
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+.scroll-region-always::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+.scroll-region-always::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 999px;
+}
+.scroll-region-always::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+.scroll-region-always::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
+}
+
+/* Touch / coarse pointer: keep thumbs discoverable */
+@media (hover: none) and (pointer: coarse) {
+  .scroll-region,
+  .shell-content,
+  .app-sidebar-scroll,
+  .icon-rail,
+  .table-scroll,
+  .record-modal,
+  .modal-body,
+  .login-page,
+  .dir-provider-list,
+  .enr-drawer-body,
+  .enr-composer,
+  .notify-list,
+  .global-search-dropdown,
+  .ins-doc-pane,
+  .ins-form-pane,
+  .ins-preview-frame,
+  .msel-dropdown {
+    --_sb-thumb: var(--scrollbar-thumb);
+    --_sb-track: var(--scrollbar-track);
+  }
+}

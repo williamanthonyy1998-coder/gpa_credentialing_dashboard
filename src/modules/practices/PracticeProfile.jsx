@@ -73,6 +73,7 @@ export default function PracticeProfile() {
   useEffect(() => {
     loadLists().catch(e => setError(e.response?.data?.error || 'Could not load practices.'));
     if (!isNew) loadDetail(id).catch(e => setError(e.response?.data?.error || 'Could not load practice.'));
+    else setEditModal('basic');
   }, [id]);
 
   function setStep(key) {
@@ -206,6 +207,23 @@ export default function PracticeProfile() {
           }
         });
       }}
+      onAddFacility={() => {
+        const pid = practiceId || (!isNew ? id : null);
+        if (!pid) {
+          setError('Save the practice basic information before adding a facility.');
+          setEditModal('basic');
+          return;
+        }
+        const returnTo = `/practices/${pid}/profile?step=${stepKey}`;
+        nav('/facilities/new/profile', {
+          state: {
+            returnTo,
+            listKey: 'practices',
+            practiceId: pid,
+            organizationId: detail?.organizationId || location.state?.organizationId
+          }
+        });
+      }}
       steps={STEPS}
       activeStepKey={stepKey}
       onStepChange={setStep}
@@ -230,7 +248,19 @@ export default function PracticeProfile() {
           }
         },
         { key: 'settings', label: 'Settings', icon: Settings, onClick: () => setStep('basic') },
-        { key: 'addProvider', label: 'Add Provider', icon: UserPlus, onClick: () => nav('/providers') },
+        {
+          key: 'addProvider',
+          label: 'Add Provider',
+          icon: UserPlus,
+          onClick: () => nav('/providers/new/profile', {
+            state: {
+              returnTo: `/practices/${practiceId || id}/profile?step=${stepKey}`,
+              listKey: 'practices',
+              practiceId: practiceId || id,
+              organizationId: detail?.organizationId
+            }
+          })
+        },
         {
           key: 'share',
           label: 'Share',
@@ -317,7 +347,7 @@ export default function PracticeProfile() {
             <button type="button" className="small-action" disabled={ownerIndex <= 0} onClick={() => setOwnerIndex(i => i - 1)}>‹</button>
             <span>Owner {owners.length ? ownerIndex + 1 : 0} of {owners.length}</span>
             <button type="button" className="small-action" disabled={ownerIndex >= owners.length - 1} onClick={() => setOwnerIndex(i => i + 1)}>›</button>
-            <button type="button" className="small-action" onClick={() => setEditModal('owner')}>+ Add</button>
+            <button type="button" className="small-action" onClick={() => setEditModal('owner')} aria-label="Add owner">+ Add</button>
           </div>
 
           {currentOwner ? (
@@ -380,9 +410,10 @@ export default function PracticeProfile() {
               detail={detail}
               orgs={orgs}
               mode={editModal}
+              defaults={{ organizationId: location.state?.organizationId || '' }}
               onSave={async (form) => {
                 await saveSection({
-                  organizationId: form.organizationId || detail?.organizationId,
+                  organizationId: form.organizationId || detail?.organizationId || location.state?.organizationId,
                   name: form.name,
                   legalName: form.legalName,
                   dba: form.dba,
@@ -453,9 +484,9 @@ function EditModal({ title, children, onClose, saving }) {
   );
 }
 
-function BasicForm({ detail, orgs, mode, onSave }) {
+function BasicForm({ detail, orgs, mode, onSave, defaults = {} }) {
   const [form, setForm] = useState({
-    organizationId: detail?.organizationId || '',
+    organizationId: detail?.organizationId || defaults.organizationId || '',
     name: detail?.name || '',
     legalName: detail?.legalName || '',
     dba: detail?.dba || '',

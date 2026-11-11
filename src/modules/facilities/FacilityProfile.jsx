@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
-  Activity, Bell, Clock, Eye, FileText, FolderOpen, Link2, Pencil, Plus, Search, Settings, Share2, X
+  Activity, Bell, Clock, Eye, FileText, FolderOpen, Link2, Pencil, Plus, Search, Settings, Share2, Trash2, X
 } from 'lucide-react';
 import api from '../../api/client';
 import DirectoryProfileShell from '../../components/layout/DirectoryProfileShell';
 import InfoField from '../../components/common/InfoField';
 import StatusBadge from '../../components/common/StatusBadge';
+import IconButton, { RowActions } from '../../components/common/IconButton';
 import { currentListPath, saveListReturn } from '../../navigation/listReturn';
 
 const STEPS = [
@@ -46,6 +47,7 @@ export default function FacilityProfile() {
   const [contactTab, setContactTab] = useState('ORGANIZATION');
   const [error, setError] = useState('');
   const [editModal, setEditModal] = useState(null);
+  const [formKey, setFormKey] = useState(0);
   const [providerQ, setProviderQ] = useState('');
   const [providers, setProviders] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -159,6 +161,7 @@ export default function FacilityProfile() {
       setAffiliations([]);
       setProvidersLoading(false);
       setProvidersError('');
+      setEditModal('basic');
     }
     return () => { active = false; };
   }, [id]);
@@ -284,11 +287,30 @@ export default function FacilityProfile() {
       }}
       dirty={dirty}
       practices={practices}
-      selectedPracticeId={detail?.practiceId || ''}
+      selectedPracticeId={detail?.practiceId || location.state?.practiceId || ''}
       onSelectPractice={(pid) => { if (pid) nav(`/practices/${pid}/profile`); }}
       facilities={facilities}
       selectedFacilityId={facilityId || ''}
       onSelectFacility={(fid) => nav(`/facilities/${fid}/profile?step=${stepKey}`)}
+      onAddFacility={() => {
+        const createState = {
+          returnTo: currentListPath(`/facilities/${facilityId || 'new'}/profile`, `?step=${stepKey}`),
+          listKey: 'facilities',
+          practiceId: detail?.practiceId || location.state?.practiceId,
+          organizationId: detail?.organizationId || location.state?.organizationId
+        };
+        if (isNew) {
+          setDetail(null);
+          setFacilityId(null);
+          setAffiliations([]);
+          setContacts([]);
+          setFormKey(k => k + 1);
+          setEditModal('basic');
+          nav('/facilities/new/profile', { replace: true, state: createState });
+          return;
+        }
+        nav('/facilities/new/profile', { state: createState });
+      }}
       providers={facilityProviders}
       providersLoading={providersLoading}
       providersError={providersError}
@@ -409,32 +431,47 @@ export default function FacilityProfile() {
         <>
           <div className="section-head">
             <h2>INDIVIDUAL PROVIDERS</h2>
-            <button type="button" className="icon-round" onClick={() => setEditModal('providers')}><Plus size={14} /></button>
+            <button type="button" className="icon-round" onClick={() => setEditModal('providers')} aria-label="Assign provider" title="Assign provider"><Plus size={14} /></button>
           </div>
-          <div className="table-scroll">
+          <div className="table-scroll table-cards">
             <table className="brand-table">
               <thead>
-                <tr><th>S. NO</th><th>NAME</th><th>NPI</th><th>STATUS</th><th>APPROVAL</th><th>ACTIONS</th></tr>
+                <tr>
+                  <th className="col-index">#</th>
+                  <th>Name</th>
+                  <th className="col-narrow">NPI</th>
+                  <th className="col-status">Status</th>
+                  <th className="col-mid">Approval</th>
+                  <th className="col-actions action-head">Actions</th>
+                </tr>
               </thead>
               <tbody>
                 {affiliations.map((a, i) => (
                   <tr key={`${a.providerId}-${i}`}>
-                    <td>{i + 1}</td>
-                    <td className="cell-strong">{a.provider?.firstName} {a.provider?.lastName}</td>
-                    <td>{a.provider?.npi || '—'}</td>
-                    <td><StatusBadge value={a.provider?.status} /></td>
-                    <td>{a.approvalStatus || '—'}</td>
-                    <td>
-                      <div className="row-actions">
-                        <button
-                          className="icon-round"
-                          title="View provider"
+                    <td className="col-index" data-label="#">{i + 1}</td>
+                    <td className="cell-strong" data-label="Name">
+                      <span className="cell-clip" title={`${a.provider?.firstName || ''} ${a.provider?.lastName || ''}`.trim()}>
+                        {a.provider?.firstName} {a.provider?.lastName}
+                      </span>
+                    </td>
+                    <td className="col-narrow" data-label="NPI">{a.provider?.npi || '—'}</td>
+                    <td className="col-status" data-label="Status"><StatusBadge value={a.provider?.status} /></td>
+                    <td className="col-mid" data-label="Approval">{a.approvalStatus || '—'}</td>
+                    <td className="col-actions" data-label="Actions">
+                      <RowActions>
+                        <IconButton
+                          icon={Eye}
+                          label="View provider"
+                          tone="view"
                           onClick={() => openAssignedProvider(a.providerId)}
-                        >
-                          <Eye size={14} />
-                        </button>
-                        <button className="small-action danger-text" onClick={() => removeAff(a.providerId)}>Remove</button>
-                      </div>
+                        />
+                        <IconButton
+                          icon={Trash2}
+                          label="Remove"
+                          tone="delete"
+                          onClick={() => removeAff(a.providerId)}
+                        />
+                      </RowActions>
                     </td>
                   </tr>
                 ))}
@@ -449,33 +486,40 @@ export default function FacilityProfile() {
         <>
           <div className="section-head">
             <h2>CONTACTS</h2>
-            <button type="button" className="icon-round" onClick={() => setEditModal('contact')}><Plus size={14} /></button>
+            <button type="button" className="icon-round" onClick={() => setEditModal('contact')} aria-label="Add contact" title="Add contact"><Plus size={14} /></button>
           </div>
           <div className="tab-row">
             <button type="button" className={`tab-btn ${contactTab === 'PERSON' ? 'active' : ''}`} onClick={() => setContactTab('PERSON')}>Person</button>
             <button type="button" className={`tab-btn ${contactTab === 'ORGANIZATION' ? 'active' : ''}`} onClick={() => setContactTab('ORGANIZATION')}>Organization</button>
           </div>
-          <div className="table-scroll">
+          <div className="table-scroll table-cards">
             <table className="brand-table">
               <thead>
                 <tr>
-                  <th>S. NO</th>
-                  {contactTab === 'PERSON' ? <><th>NAME</th><th>TITLE</th></> : <th>ORGANIZATION NAME</th>}
-                  <th>EMAIL</th>
-                  <th>ACTIONS</th>
+                  <th className="col-index">#</th>
+                  {contactTab === 'PERSON' ? <><th>Name</th><th className="col-mid">Title</th></> : <th>Organization</th>}
+                  <th>Email</th>
+                  <th className="col-actions action-head">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {contacts.filter(c => c.kind === contactTab).map((c, i) => (
                   <tr key={c.id}>
-                    <td>{i + 1}</td>
-                    {contactTab === 'PERSON' ? <><td>{c.name}</td><td>{c.title || '—'}</td></> : <td>{c.organizationName}</td>}
-                    <td>{c.email || '—'}</td>
-                    <td>
-                      <div className="row-actions">
-                        <button className="icon-round"><Link2 size={13} /></button>
-                        <button className="icon-round danger" onClick={() => deleteContact(c.id)}><X size={13} /></button>
-                      </div>
+                    <td className="col-index" data-label="#">{i + 1}</td>
+                    {contactTab === 'PERSON' ? (
+                      <>
+                        <td data-label="Name"><span className="cell-clip" title={c.name}>{c.name}</span></td>
+                        <td className="col-mid" data-label="Title"><span className="cell-clip" title={c.title || '—'}>{c.title || '—'}</span></td>
+                      </>
+                    ) : (
+                      <td data-label="Organization"><span className="cell-clip" title={c.organizationName}>{c.organizationName}</span></td>
+                    )}
+                    <td data-label="Email"><span className="cell-clip" title={c.email || '—'}>{c.email || '—'}</span></td>
+                    <td className="col-actions" data-label="Actions">
+                      <RowActions>
+                        <IconButton icon={Link2} label="Link contact" tone="view" />
+                        <IconButton icon={Trash2} label="Delete contact" tone="delete" onClick={() => deleteContact(c.id)} />
+                      </RowActions>
                     </td>
                   </tr>
                 ))}
@@ -497,9 +541,14 @@ export default function FacilityProfile() {
             </div>
             {editModal === 'basic' && (
               <BasicFacilityForm
+                key={`facility-basic-${formKey}-${location.state?.practiceId || ''}-${location.state?.organizationId || ''}`}
                 detail={detail}
                 practices={practices}
                 saving={saving}
+                defaults={{
+                  practiceId: location.state?.practiceId || '',
+                  organizationId: location.state?.organizationId || ''
+                }}
                 onSave={async (form) => {
                   await saveFacility({
                     name: form.name,
@@ -568,19 +617,32 @@ export default function FacilityProfile() {
   );
 }
 
-function BasicFacilityForm({ detail, practices, onSave, saving }) {
-  const [form, setForm] = useState({
-    name: detail?.name || '',
-    npi: detail?.npi || '',
-    practiceId: detail?.practiceId || '',
-    organizationId: detail?.organizationId || '',
-    contactName: detail?.contactName || '',
-    contactTitle: detail?.contactTitle || '',
-    phone: detail?.phone || '',
-    fax: detail?.fax || '',
-    email: detail?.email || '',
-    status: detail?.status || 'ACTIVE'
+function BasicFacilityForm({ detail, practices, onSave, saving, defaults = {} }) {
+  const [form, setForm] = useState(() => {
+    const practiceId = detail?.practiceId || defaults.practiceId || '';
+    const practice = practices.find(p => p.id === practiceId);
+    return {
+      name: detail?.name || '',
+      npi: detail?.npi || '',
+      practiceId,
+      organizationId: detail?.organizationId || defaults.organizationId || practice?.organizationId || '',
+      contactName: detail?.contactName || '',
+      contactTitle: detail?.contactTitle || '',
+      phone: detail?.phone || '',
+      fax: detail?.fax || '',
+      email: detail?.email || '',
+      status: detail?.status || 'ACTIVE'
+    };
   });
+
+  useEffect(() => {
+    if (!form.practiceId || form.organizationId) return;
+    const practice = practices.find(p => p.id === form.practiceId);
+    if (practice?.organizationId) {
+      setForm(prev => ({ ...prev, organizationId: practice.organizationId }));
+    }
+  }, [practices, form.practiceId, form.organizationId]);
+
   return (
     <form className="form-grid" onSubmit={e => { e.preventDefault(); onSave(form); }}>
       <label className="span-2">Facility Name<input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></label>

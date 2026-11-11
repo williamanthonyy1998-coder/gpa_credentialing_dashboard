@@ -38,29 +38,44 @@ export default function AuditPage({ organizationId }) {
       />
       {error && <div className="error banner">{error}</div>}
       <section className="panel table-panel">
-        <div className="table-scroll">
+        <div className="table-scroll table-cards">
           <table>
             <thead>
               <tr>
-                <th>Time</th><th>Actor</th><th>Action</th>
-                <th>Record type</th><th>Record ID</th><th>Source IP</th>
+                <th className="col-mid">Time</th>
+                <th>Actor</th>
+                <th className="col-status">Action</th>
+                <th className="col-mid">Record type</th>
+                <th>Record ID</th>
+                <th className="col-narrow">Source IP</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr><td colSpan="6" className="table-empty">Loading audit events…</td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan="6" className="table-empty">No audit events recorded yet.</td></tr>
-              ) : rows.map(r => (
-                <tr key={r.id}>
-                  <td>{new Date(r.createdAt).toLocaleString()}</td>
-                  <td>{r.actor?.name || r.actor?.email || 'System / unavailable'}</td>
-                  <td><StatusBadge value={r.action} /></td>
-                  <td>{r.entityType}</td>
-                  <td>{r.entityId || '—'}</td>
-                  <td>{r.ipAddress || '—'}</td>
+                <tr>
+                  <td colSpan="6" className="table-empty">
+                    <div className="empty-inline">
+                      <b>No audit events yet</b>
+                      <span>Create, update, and delete actions will appear here for operational traceability.</span>
+                    </div>
+                  </td>
                 </tr>
-              ))}
+              ) : rows.map(r => {
+                const actor = r.actor?.name || r.actor?.email || 'System / unavailable';
+                const when = new Date(r.createdAt).toLocaleString();
+                return (
+                <tr key={r.id}>
+                  <td className="col-mid" data-label="Time" title={when}>{when}</td>
+                  <td data-label="Actor"><span className="cell-clip" title={actor}>{actor}</span></td>
+                  <td className="col-status" data-label="Action"><StatusBadge value={r.action} /></td>
+                  <td className="col-mid" data-label="Record type"><span className="cell-clip" title={r.entityType}>{r.entityType}</span></td>
+                  <td data-label="Record ID"><span className="cell-clip" title={r.entityId || '—'}>{r.entityId || '—'}</span></td>
+                  <td className="col-narrow" data-label="Source IP"><span className="cell-clip" title={r.ipAddress || '—'}>{r.ipAddress || '—'}</span></td>
+                </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

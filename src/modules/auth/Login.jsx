@@ -4,8 +4,9 @@ import { ShieldCheck } from 'lucide-react';
 import api from '../../api/client';
 
 export default function Login() {
-  const [email, setEmail] = useState('admin@example.com');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const nav = useNavigate();
@@ -29,7 +30,7 @@ export default function Login() {
   return (
     <div className="login-page">
       <div className="login-art">
-        <div className="brand-mark"><ShieldCheck size={28} /></div>
+        <div className="brand-mark"><ShieldCheck size={28} aria-hidden="true" /></div>
         <h1>eClinicAssist</h1>
         <p>Enterprise healthcare directory, credentialing, and payer enrollment — connected master records, clear ownership, auditable decisions.</p>
         <div className="login-art-foot">Secure workflows · Organization-centered directory · Operational excellence</div>
@@ -39,14 +40,29 @@ export default function Login() {
         <h2>Welcome back</h2>
         <p className="muted">Sign in to continue to your directory and credentialing workspace.</p>
         <label>Email address
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="username" />
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="username" placeholder="you@organization.com" />
         </label>
         <label>Password
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" />
+          <div className="login-password-row">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+            />
+            <button
+              type="button"
+              className="ghost-btn login-password-toggle"
+              onClick={() => setShowPassword(v => !v)}
+              aria-pressed={showPassword}
+            >
+              {showPassword ? 'Hide' : 'Show'}
+            </button>
+          </div>
         </label>
-        {error && <div className="error">{error}</div>}
+        {error && <div className="error" role="alert">{error}</div>}
         <button className="primary full" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
-        <p className="hint">Local seed accounts and password are documented in README. Change defaults before any real use.</p>
       </form>
     </div>
   );

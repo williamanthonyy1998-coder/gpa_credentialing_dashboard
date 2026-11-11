@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
-  Activity, Bell, Eye, FileText, FolderOpen, Pencil, Plus, Search, Settings, Share2, X
+  Activity, Bell, Eye, FileText, FolderOpen, Pencil, Plus, Search, Settings, Share2, Trash2, X
 } from 'lucide-react';
 import api from '../../api/client';
 import DirectoryProfileShell from '../../components/layout/DirectoryProfileShell';
 import InfoField from '../../components/common/InfoField';
 import MaskedField from '../../components/common/MaskedField';
 import StatusBadge from '../../components/common/StatusBadge';
+import IconButton, { RowActions } from '../../components/common/IconButton';
 import { currentListPath, saveListReturn } from '../../navigation/listReturn';
 
 const STEPS = [
@@ -100,6 +101,7 @@ export default function ProviderProfile() {
   useEffect(() => {
     loadProviderList().catch(e => setError(e.response?.data?.error || 'Could not load providers.'));
     if (!isNew) loadDetail(id).catch(e => setError(e.response?.data?.error || 'Could not load provider.'));
+    else setEditModal('personal');
   }, [id]);
 
   const completion = useMemo(() => {
@@ -317,26 +319,33 @@ export default function ProviderProfile() {
         <>
           <div className="section-head">
             <h2>LICENSES & CERTIFICATIONS</h2>
-            <button type="button" className="icon-round" onClick={() => setEditModal('license')}><Plus size={14} /></button>
+            <button type="button" className="icon-round" onClick={() => setEditModal('license')} aria-label="Add license" title="Add license"><Plus size={14} /></button>
           </div>
           <p className="muted" style={{ marginBottom: 12 }}>
             Manage licenses in the profile or open the{' '}
             <button type="button" className="text-link" onClick={() => nav('/licenses')}>licenses workspace</button>.
           </p>
-          <div className="table-scroll">
+          <div className="table-scroll table-cards">
             <table className="brand-table">
               <thead>
-                <tr><th>S. NO</th><th>TYPE</th><th>NUMBER</th><th>STATE</th><th>EXPIRES</th><th>STATUS</th></tr>
+                <tr>
+                  <th className="col-index">#</th>
+                  <th>Type</th>
+                  <th className="col-mid">Number</th>
+                  <th className="col-narrow">State</th>
+                  <th className="col-date">Expires</th>
+                  <th className="col-status">Status</th>
+                </tr>
               </thead>
               <tbody>
                 {licenses.map((lic, i) => (
                   <tr key={lic.id}>
-                    <td>{i + 1}</td>
-                    <td className="cell-strong">{lic.type}</td>
-                    <td>{lic.number || '—'}</td>
-                    <td>{lic.state || '—'}</td>
-                    <td>{fmtDate(lic.expiresAt)}</td>
-                    <td><StatusBadge value={lic.status} /></td>
+                    <td className="col-index" data-label="#">{i + 1}</td>
+                    <td className="cell-strong" data-label="Type"><span className="cell-clip" title={lic.type}>{lic.type}</span></td>
+                    <td className="col-mid" data-label="Number"><span className="cell-clip" title={lic.number || '—'}>{lic.number || '—'}</span></td>
+                    <td className="col-narrow" data-label="State">{lic.state || '—'}</td>
+                    <td className="col-date" data-label="Expires">{fmtDate(lic.expiresAt)}</td>
+                    <td className="col-status" data-label="Status"><StatusBadge value={lic.status} /></td>
                   </tr>
                 ))}
                 {!licenses.length && <tr><td colSpan="6" className="table-empty">No licenses on file. Add a license or use the licenses list.</td></tr>}
@@ -350,61 +359,88 @@ export default function ProviderProfile() {
         <>
           <div className="section-head">
             <h2>AFFILIATIONS</h2>
-            <button type="button" className="icon-round" onClick={() => { setEditModal('affiliation'); setSearchHits([]); setSearchQ(''); }}><Plus size={14} /></button>
+            <button type="button" className="icon-round" onClick={() => { setEditModal('affiliation'); setSearchHits([]); setSearchQ(''); }} aria-label="Add affiliation" title="Add affiliation"><Plus size={14} /></button>
           </div>
           <div className="tab-row">
             <button type="button" className={`tab-btn ${affTab === 'organizations' ? 'active' : ''}`} onClick={() => setAffTab('organizations')}>Organizations</button>
             <button type="button" className={`tab-btn ${affTab === 'practices' ? 'active' : ''}`} onClick={() => setAffTab('practices')}>Practices</button>
             <button type="button" className={`tab-btn ${affTab === 'facilities' ? 'active' : ''}`} onClick={() => setAffTab('facilities')}>Facilities</button>
           </div>
-          <div className="table-scroll">
+          <div className="table-scroll table-cards">
             <table className="brand-table">
               <thead>
                 <tr>
-                  <th>S. NO</th>
-                  <th>NAME</th>
-                  <th>ROLE / STATUS</th>
-                  <th>EFFECTIVE</th>
-                  <th>ACTIONS</th>
+                  <th className="col-index">#</th>
+                  <th>Name</th>
+                  <th className="col-mid">Role / Status</th>
+                  <th className="col-date">Effective</th>
+                  <th className="col-actions action-head">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {affTab === 'organizations' && orgAffiliations.map((a, i) => (
                   <tr key={a.id}>
-                    <td>{i + 1}</td>
-                    <td className="cell-strong">{a.organization?.legalName || '—'}</td>
-                    <td>{a.affiliationTitle || a.status || '—'}</td>
-                    <td>{fmtDate(a.effectiveAt)}</td>
-                    <td>
-                      <div className="row-actions">
-                        <button className="icon-round" title="View organization" onClick={() => nav(`/organizations/${a.organizationId}/overview`)}><Eye size={14} /></button>
-                        <button className="small-action danger-text" onClick={() => removeOrgAff(a.id)}>Remove</button>
-                      </div>
+                    <td className="col-index" data-label="#">{i + 1}</td>
+                    <td className="cell-strong" data-label="Name"><span className="cell-clip" title={a.organization?.legalName || '—'}>{a.organization?.legalName || '—'}</span></td>
+                    <td className="col-mid" data-label="Role / Status"><span className="cell-clip" title={a.affiliationTitle || a.status || '—'}>{a.affiliationTitle || a.status || '—'}</span></td>
+                    <td className="col-date" data-label="Effective">{fmtDate(a.effectiveAt)}</td>
+                    <td className="col-actions" data-label="Actions">
+                      <RowActions>
+                        <IconButton
+                          icon={Eye}
+                          label="View organization"
+                          tone="view"
+                          onClick={() => nav(`/organizations/${a.organizationId}/overview`)}
+                        />
+                        <IconButton
+                          icon={Trash2}
+                          label="Remove"
+                          tone="delete"
+                          onClick={() => removeOrgAff(a.id)}
+                        />
+                      </RowActions>
                     </td>
                   </tr>
                 ))}
                 {affTab === 'practices' && practiceAffiliations.map((a, i) => (
                   <tr key={`${a.providerId}-${a.practiceId}`}>
-                    <td>{i + 1}</td>
-                    <td className="cell-strong">{a.practice?.name || '—'}</td>
-                    <td>{a.affiliationTitle || '—'}</td>
-                    <td>{fmtDate(a.effectiveAt)}</td>
-                    <td>
-                      <button className="icon-round" title="View practice" onClick={() => nav(`/practices/${a.practiceId}/profile`)}><Eye size={14} /></button>
+                    <td className="col-index" data-label="#">{i + 1}</td>
+                    <td className="cell-strong" data-label="Name"><span className="cell-clip" title={a.practice?.name || '—'}>{a.practice?.name || '—'}</span></td>
+                    <td className="col-mid" data-label="Role / Status"><span className="cell-clip" title={a.affiliationTitle || '—'}>{a.affiliationTitle || '—'}</span></td>
+                    <td className="col-date" data-label="Effective">{fmtDate(a.effectiveAt)}</td>
+                    <td className="col-actions" data-label="Actions">
+                      <RowActions>
+                        <IconButton
+                          icon={Eye}
+                          label="View practice"
+                          tone="view"
+                          onClick={() => nav(`/practices/${a.practiceId}/profile`)}
+                        />
+                      </RowActions>
                     </td>
                   </tr>
                 ))}
                 {affTab === 'facilities' && facilityAffiliations.map((a, i) => (
                   <tr key={`${a.providerId}-${a.facilityId}`}>
-                    <td>{i + 1}</td>
-                    <td className="cell-strong">{a.facility?.name || '—'}</td>
-                    <td>{a.approvalStatus || '—'}</td>
-                    <td>{fmtDate(a.effectiveAt)}</td>
-                    <td>
-                      <div className="row-actions">
-                        <button className="icon-round" title="View facility" onClick={() => nav(`/facilities/${a.facilityId}/profile`)}><Eye size={14} /></button>
-                        <button className="small-action danger-text" onClick={() => removeFacilityAff(a.facilityId)}>Remove</button>
-                      </div>
+                    <td className="col-index" data-label="#">{i + 1}</td>
+                    <td className="cell-strong" data-label="Name"><span className="cell-clip" title={a.facility?.name || '—'}>{a.facility?.name || '—'}</span></td>
+                    <td className="col-mid" data-label="Role / Status"><span className="cell-clip" title={a.approvalStatus || '—'}>{a.approvalStatus || '—'}</span></td>
+                    <td className="col-date" data-label="Effective">{fmtDate(a.effectiveAt)}</td>
+                    <td className="col-actions" data-label="Actions">
+                      <RowActions>
+                        <IconButton
+                          icon={Eye}
+                          label="View facility"
+                          tone="view"
+                          onClick={() => nav(`/facilities/${a.facilityId}/profile`)}
+                        />
+                        <IconButton
+                          icon={Trash2}
+                          label="Remove"
+                          tone="delete"
+                          onClick={() => removeFacilityAff(a.facilityId)}
+                        />
+                      </RowActions>
                     </td>
                   </tr>
                 ))}
@@ -420,18 +456,23 @@ export default function ProviderProfile() {
       {stepKey === 'enrollments' && (
         <>
           <div className="section-head"><h2>ENROLLMENTS</h2></div>
-          <div className="table-scroll">
+          <div className="table-scroll table-cards">
             <table className="brand-table">
               <thead>
-                <tr><th>APPLICATION</th><th>PAYER / PLAN</th><th>STATUS</th><th>SUBMITTED</th></tr>
+                <tr>
+                  <th>Application</th>
+                  <th>Payer / Plan</th>
+                  <th className="col-status">Status</th>
+                  <th className="col-date">Submitted</th>
+                </tr>
               </thead>
               <tbody>
                 {enrollments.map(e => (
                   <tr key={e.id}>
-                    <td className="cell-strong">{e.applicationNo}</td>
-                    <td>{e.payerPlan?.payer?.name || e.payerPlan?.name || '—'}</td>
-                    <td><StatusBadge value={e.status} /></td>
-                    <td>{fmtDate(e.submittedAt || e.createdAt)}</td>
+                    <td className="cell-strong" data-label="Application"><span className="cell-clip" title={e.applicationNo}>{e.applicationNo}</span></td>
+                    <td data-label="Payer / Plan"><span className="cell-clip" title={e.payerPlan?.payer?.name || e.payerPlan?.name || '—'}>{e.payerPlan?.payer?.name || e.payerPlan?.name || '—'}</span></td>
+                    <td className="col-status" data-label="Status"><StatusBadge value={e.status} /></td>
+                    <td className="col-date" data-label="Submitted">{fmtDate(e.submittedAt || e.createdAt)}</td>
                   </tr>
                 ))}
                 {!enrollments.length && <tr><td colSpan="4" className="table-empty">No enrollments linked to this provider.</td></tr>}
@@ -439,18 +480,23 @@ export default function ProviderProfile() {
             </table>
           </div>
           <div className="section-head" style={{ marginTop: 24 }}><h2>CREDENTIALING CASES</h2></div>
-          <div className="table-scroll">
+          <div className="table-scroll table-cards">
             <table className="brand-table">
               <thead>
-                <tr><th>CASE #</th><th>STATUS</th><th>DUE</th><th>PRACTICE</th></tr>
+                <tr>
+                  <th>Case #</th>
+                  <th className="col-status">Status</th>
+                  <th className="col-date">Due</th>
+                  <th>Practice</th>
+                </tr>
               </thead>
               <tbody>
                 {cases.map(c => (
                   <tr key={c.id}>
-                    <td className="cell-strong">{c.caseNumber}</td>
-                    <td><StatusBadge value={c.status} /></td>
-                    <td>{fmtDate(c.dueAt)}</td>
-                    <td>{c.practice?.name || '—'}</td>
+                    <td className="cell-strong" data-label="Case #"><span className="cell-clip" title={c.caseNumber}>{c.caseNumber}</span></td>
+                    <td className="col-status" data-label="Status"><StatusBadge value={c.status} /></td>
+                    <td className="col-date" data-label="Due">{fmtDate(c.dueAt)}</td>
+                    <td data-label="Practice"><span className="cell-clip" title={c.practice?.name || '—'}>{c.practice?.name || '—'}</span></td>
                   </tr>
                 ))}
                 {!cases.length && <tr><td colSpan="4" className="table-empty">No credentialing cases for this provider.</td></tr>}
@@ -474,18 +520,23 @@ export default function ProviderProfile() {
             {' or '}
             <button type="button" className="text-link" onClick={() => nav('/documents')}>documents list</button>.
           </p>
-          <div className="table-scroll">
+          <div className="table-scroll table-cards">
             <table className="brand-table">
               <thead>
-                <tr><th>TITLE</th><th>TYPE</th><th>STATUS</th><th>EXPIRES</th></tr>
+                <tr>
+                  <th>Title</th>
+                  <th className="col-mid">Type</th>
+                  <th className="col-status">Status</th>
+                  <th className="col-date">Expires</th>
+                </tr>
               </thead>
               <tbody>
                 {documents.map(doc => (
                   <tr key={doc.id}>
-                    <td className="cell-strong">{doc.title}</td>
-                    <td>{doc.type}</td>
-                    <td><StatusBadge value={doc.status} /></td>
-                    <td>{fmtDate(doc.expiresAt)}</td>
+                    <td className="cell-strong" data-label="Title"><span className="cell-clip" title={doc.title}>{doc.title}</span></td>
+                    <td className="col-mid" data-label="Type"><span className="cell-clip" title={doc.type}>{doc.type}</span></td>
+                    <td className="col-status" data-label="Status"><StatusBadge value={doc.status} /></td>
+                    <td className="col-date" data-label="Expires">{fmtDate(doc.expiresAt)}</td>
                   </tr>
                 ))}
                 {!documents.length && <tr><td colSpan="4" className="table-empty">No documents linked to this provider.</td></tr>}

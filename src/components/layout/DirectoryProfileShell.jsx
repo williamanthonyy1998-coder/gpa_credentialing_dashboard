@@ -81,7 +81,7 @@ export default function DirectoryProfileShell({
         facilities={facilities}
         selectedFacilityId={selectedFacilityId}
         onSelectFacility={(id) => handlers.current.onSelectFacility?.(id)}
-        onAddFacility={() => handlers.current.onAddFacility?.()}
+        onAddFacility={onAddFacility ? () => handlers.current.onAddFacility?.() : undefined}
         providers={providers}
         selectedProviderId={selectedProviderId}
         onSelectProvider={(id) => handlers.current.onSelectProvider?.(id)}
@@ -94,30 +94,30 @@ export default function DirectoryProfileShell({
     );
   }, [
     entityType, practices, selectedPracticeId, facilities, selectedFacilityId,
-    providers, selectedProviderId, providersLoading, providersError,
+    !!onAddFacility, providers, selectedProviderId, providersLoading, providersError,
     steps, activeStepKey, setContextualNav, setHideTopbar
   ]);
 
   useEffect(() => () => clearContextualNav(), [clearContextualNav]);
 
   const practiceQuick = quickActions || [
-    { key: 'intent', label: 'Intent Letter', icon: FileText },
-    { key: 'roster', label: 'Roster', icon: Users },
-    { key: 'activity', label: 'Activity', icon: Activity },
-    { key: 'alerts', label: 'Alerts', icon: Bell },
-    { key: 'settings', label: 'Settings', icon: Settings },
-    { key: 'addProvider', label: 'Add Provider', icon: UserPlus },
-    { key: 'share', label: 'Share', icon: Share2 }
+    { key: 'intent', label: 'Intent Letter', icon: FileText, onClick: () => nav('/credentials') },
+    { key: 'roster', label: 'Roster', icon: Users, onClick: () => nav('/providers') },
+    { key: 'activity', label: 'Activity', icon: Activity, onClick: () => nav('/audit') },
+    { key: 'alerts', label: 'Alerts', icon: Bell, onClick: () => nav('/credentials') },
+    { key: 'settings', label: 'Settings', icon: Settings, onClick: () => onStepChange?.('basic') },
+    { key: 'addProvider', label: 'Add Provider', icon: UserPlus, onClick: () => nav('/providers/new/profile') },
+    { key: 'share', label: 'Share', icon: Share2, onClick: () => { navigator.clipboard?.writeText(window.location.href); } }
   ];
 
   const facilityQuick = quickActions || [
-    { key: 'w9', label: 'W-9 Form', icon: FileText },
-    { key: 'credentials', label: 'Credentials', icon: FileText },
-    { key: 'enrollments', label: 'Enrollments', icon: FileText },
-    { key: 'share', label: 'Share', icon: Share2 },
-    { key: 'alerts', label: 'Alerts', icon: Bell },
-    { key: 'activity', label: 'Activity', icon: Activity },
-    { key: 'settings', label: 'Settings', icon: Settings }
+    { key: 'w9', label: 'W-9 Form', icon: FileText, onClick: () => selectedFacilityId && nav(`/facilities/${selectedFacilityId}/credentials`) },
+    { key: 'credentials', label: 'Credentials', icon: FileText, onClick: () => selectedFacilityId && nav(`/facilities/${selectedFacilityId}/credentials`) },
+    { key: 'enrollments', label: 'Enrollments', icon: FileText, onClick: () => nav('/enrollments') },
+    { key: 'share', label: 'Share', icon: Share2, onClick: () => { navigator.clipboard?.writeText(window.location.href); } },
+    { key: 'alerts', label: 'Alerts', icon: Bell, onClick: () => selectedFacilityId && nav(`/facilities/${selectedFacilityId}/credentials`) },
+    { key: 'activity', label: 'Activity', icon: Activity, onClick: () => nav('/audit') },
+    { key: 'settings', label: 'Settings', icon: Settings, onClick: () => onStepChange?.('basic') }
   ];
 
   const actions = rightMode === 'facility' || rightMode === 'provider' ? facilityQuick : practiceQuick;
@@ -213,7 +213,14 @@ export default function DirectoryProfileShell({
               {actions.map(a => {
                 const Icon = a.icon;
                 return (
-                  <button key={a.key} type="button" className="quick-tile" onClick={a.onClick}>
+                  <button
+                    key={a.key}
+                    type="button"
+                    className="quick-tile"
+                    onClick={a.onClick}
+                    disabled={!a.onClick}
+                    aria-label={a.label}
+                  >
                     <Icon size={16} />
                     <span>{a.label}</span>
                   </button>
@@ -248,17 +255,44 @@ export default function DirectoryProfileShell({
                 <span>Credential attention</span>
               </div>
               <div className="attn-box">
-                <div className="attn-title">
-                  <AlertTriangle size={14} /> Expiring Soon
-                  <b>{attention?.counts?.expiringSoon ?? 0}</b>
+                <div className="attn-summary-row">
+                  <div className="attn-chip miss">
+                    <span>Missing</span>
+                    <b>{attention?.counts?.missingRequired ?? attention?.counts?.missing ?? 0}</b>
+                  </div>
+                  <div className="attn-chip exp">
+                    <span>Expired</span>
+                    <b>{attention?.counts?.expired ?? 0}</b>
+                  </div>
+                  <div className="attn-chip soon">
+                    <span>Soon</span>
+                    <b>{attention?.counts?.expiringSoon ?? 0}</b>
+                  </div>
                 </div>
-                {(attention?.expiringSoon || []).slice(0, 3).map(d => (
+                <div className="attn-title">
+                  <AlertTriangle size={14} /> Needs attention
+                </div>
+                {(attention?.expiringSoon || []).slice(0, 2).map(d => (
                   <div key={d.id} className="attn-row">
                     <span>{d.title}</span>
                     <small>Expires: {d.expiresAt ? new Date(d.expiresAt).toLocaleDateString() : '—'}</small>
                   </div>
                 ))}
-                {!attention?.expiringSoon?.length && <div className="dir-empty">No expiring credentials</div>}
+                {(attention?.expired || []).slice(0, 2).map(d => (
+                  <div key={`exp-${d.id}`} className="attn-row">
+                    <span>{d.title}</span>
+                    <small>Expired</small>
+                  </div>
+                ))}
+                {(attention?.missingRequired || []).slice(0, 2).map(d => (
+                  <div key={`miss-${d.id}`} className="attn-row">
+                    <span>{d.title}</span>
+                    <small>Missing</small>
+                  </div>
+                ))}
+                {!attention?.expiringSoon?.length && !attention?.expired?.length && !attention?.missingRequired?.length && (
+                  <div className="dir-empty">No credential attention items</div>
+                )}
               </div>
             </div>
           ) : null}

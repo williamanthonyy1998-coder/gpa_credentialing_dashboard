@@ -27,7 +27,7 @@ export const config = {
       ['status', 'Status', 'select', ['ACTIVE', 'INACTIVE', 'PENDING', 'ARCHIVED']]
     ],
     columns: [
-      ['legalName', 'Organization Name'], ['dba', 'DBA / Legal DBA'], ['taxId', 'Tax ID'],
+      ['legalName', 'Organization'], ['dba', 'DBA'], ['taxId', 'Tax ID'],
       ['contactName', 'Contact'], ['phone', 'Phone'], ['status', 'Status'], ['createdAt', 'Created']
     ]
   },
@@ -176,13 +176,13 @@ export const config = {
   },
   enrollments: {
     title: 'Payer Enrollment Applications', singular: 'Enrollment Application',
-    resource: 'enrollments', search: 'Search application number or reference',
+    resource: 'enrollments', search: 'Search subject, payer, facility, or reference',
     fields: [
-      ['applicationNo', 'Application Number', 'text', true],
+      ['subject', 'Subject / Application Name', 'text'],
       ['providerId', 'Individual Provider (optional)', 'relation', 'providers'],
       ['organizationId', 'Organization / Group (optional)', 'relation', 'organizations'],
       ['practiceId', 'Practice', 'relation', 'practices'],
-      ['facilityId', 'Facility', 'relation', 'facilities'],
+      ['facilityId', 'Facility', 'relation', 'facilities', true],
       ['payerPlanId', 'Payer Plan', 'relation', 'plans', true],
       ['status', 'Status', 'select', ['NOT_STARTED', 'PREPARING', 'READY_TO_SUBMIT', 'SUBMITTED', 'PAYER_REVIEW', 'ADDITIONAL_INFORMATION_NEEDED', 'APPROVED', 'DENIED', 'WITHDRAWN']],
       ['dueAt', 'Due Date', 'date'], ['submittedAt', 'Submitted Date', 'date'],
@@ -192,10 +192,12 @@ export const config = {
       ['decisionReason', 'Decision Reason', 'textarea'], ['notes', 'Notes', 'textarea']
     ],
     columns: [
-      ['applicationNo', 'Application #'], ['provider.firstName', 'Provider first'],
-      ['provider.lastName', 'Provider last'], ['organization.legalName', 'Organization'],
-      ['facility.name', 'Facility'], ['payerPlan.payer.name', 'Payer'],
-      ['payerPlan.name', 'Plan'], ['status', 'Status'], ['nextFollowUpAt', 'Next follow-up']
+      ['payerPlan.payer.name', 'Payers'],
+      ['facility.name', 'Facilities'],
+      ['provider.lastName', 'Providers'],
+      ['lastFollowUpAt', 'Last Follow-up'],
+      ['nextFollowUpAt', 'Next Follow-up'],
+      ['assignedTo', 'Assignee']
     ]
   },
   tasks: {

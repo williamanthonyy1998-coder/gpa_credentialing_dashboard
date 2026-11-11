@@ -42,7 +42,7 @@ function QueueRow({ to, icon: Icon, title, meta, date, badge }) {
     </div>
   );
   if (to) {
-    return <Link to={to} style={{ textDecoration: 'none', color: 'inherit' }}>{inner}</Link>;
+    return <Link to={to} className="queue-row-link">{inner}</Link>;
   }
   return inner;
 }
@@ -82,14 +82,14 @@ export default function Dashboard() {
 
       <section className="dash-hero">
         <div className="dash-hero-left">
-          <div className="dash-kicker">✦ YOUR WORKSPACE AT A GLANCE</div>
+          <div className="dash-kicker">YOUR WORKSPACE AT A GLANCE</div>
           <h1>{greet}. See what needs your <span>attention</span>.</h1>
           <p>Live metrics from directory, credentialing, enrollments, and team operations—select any KPI to open the filtered workspace view.</p>
           <div className="dash-hero-links">
             <NavLink to="/organizations" className="ghost-link">Directory →</NavLink>
             <NavLink to="/enrollments" className="ghost-link">Enrollments →</NavLink>
           </div>
-          <div className="muted" style={{ marginTop: 14, fontSize: 10 }}>{todayLabel()} · {user.name || 'Workspace user'}</div>
+          <div className="muted dash-hero-meta">{todayLabel()} · {user.name || 'Workspace user'}</div>
         </div>
         <div className="dash-hero-right">
           <div className="dash-kicker light">YOUR NEXT STEP</div>
@@ -109,8 +109,8 @@ export default function Dashboard() {
         <StatCard label="Facilities" value={v(m.facilities)} icon={MapPin} to="/facilities" tone="green" hint="in directory" />
         <StatCard label="Providers" value={v(m.providers)} icon={Stethoscope} to="/providers" tone="blue" hint="all records" />
         <StatCard label="Active Providers" value={v(m.activeProviders)} icon={UserCheck} to="/providers" tone="green" hint="status active" />
-        <StatCard label="Organizations" value={v(m.organizations)} icon={Building2} to="/organizations" tone="warning" hint="legal entities" />
-        <StatCard label="Payers" value={v(m.payers)} icon={ShieldCheck} to="/payers" tone="danger" hint="payer directory" />
+        <StatCard label="Organizations" value={v(m.organizations)} icon={Building2} to="/organizations" tone="navy" hint="legal entities" />
+        <StatCard label="Payers" value={v(m.payers)} icon={ShieldCheck} to="/payers" tone="blue" hint="payer directory" />
         <StatCard label="Employees" value={v(m.employees)} icon={Users} to="/employees" tone="navy" hint="active accounts" />
         <StatCard label="On leave today" value={v(m.onLeaveToday)} icon={UserMinus} to="/employees?tab=leave" tone="warning" hint="approved leave" />
         <StatCard label="Checked in today" value={v(m.checkedInToday)} icon={UserCheck} to="/employees?tab=attendance" tone="blue" hint="open attendance" />
@@ -135,7 +135,7 @@ export default function Dashboard() {
         <h3>Tasks & workflow</h3>
         <button type="button" className="secondary" onClick={load}><RefreshCw size={14} /> Refresh</button>
       </div>
-      <div className="metric-grid dash-kpi" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
+      <div className="metric-grid dash-kpi dash-kpi-tasks">
         <StatCard label="My open tasks" value={v(m.myTasks)} icon={ListTodo} to="/tasks" tone="navy" hint="assigned to you" />
         <StatCard label="Overdue tasks" value={v(m.overdueTasks)} icon={AlertTriangle} to="/tasks" tone="danger" hint="past due" />
       </div>

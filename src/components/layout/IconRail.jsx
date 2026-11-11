@@ -5,7 +5,13 @@ import {
 } from 'lucide-react';
 
 const items = [
-  { to: '/', icon: Gauge, end: true, title: 'Dashboard', match: (p) => p === '/' },
+  {
+    to: '/',
+    icon: Gauge,
+    end: true,
+    title: 'Dashboard',
+    match: (p) => p === '/' || p === '' || p.startsWith('/intake')
+  },
   {
     to: '/organizations',
     icon: FolderOpen,
@@ -15,9 +21,9 @@ const items = [
       || p.startsWith('/practices')
       || p.startsWith('/facilities')
       || p.startsWith('/providers')
-      || p.startsWith('/credentials')
       || p.startsWith('/documents')
       || p.startsWith('/licenses')
+      || p.startsWith('/providerOrganizations')
     )
   },
   { to: '/tasks', icon: ClipboardList, title: 'Tasks', match: (p) => p.startsWith('/tasks') },
@@ -28,33 +34,22 @@ const items = [
   { to: '/employees', icon: Settings, title: 'Settings / HR', match: (p) => p.startsWith('/employees') || p.startsWith('/audit') }
 ];
 
+function resolveActiveTo(path) {
+  const hit = items.find(item => item.match(path));
+  return hit?.to || '/';
+}
+
 export default function IconRail() {
   const location = useLocation();
   const nav = useNavigate();
   const path = location.pathname;
+  const activeTo = resolveActiveTo(path);
 
   function logout() {
     localStorage.removeItem('credentialing_token');
     localStorage.removeItem('credentialing_user');
     nav('/login');
   }
-
-  let activeTo = '/';
-  if (path.startsWith('/tasks')) activeTo = '/tasks';
-  else if (path.startsWith('/cases')) activeTo = '/cases';
-  else if (path.startsWith('/enrollments') || path.startsWith('/plans')) activeTo = '/enrollments';
-  else if (path.startsWith('/payers')) activeTo = '/payers';
-  else if (path.startsWith('/credentials')) activeTo = '/credentials';
-  else if (path.startsWith('/employees') || path.startsWith('/audit')) activeTo = '/employees';
-  else if (
-    path.startsWith('/organizations')
-    || path.startsWith('/practices')
-    || path.startsWith('/facilities')
-    || path.startsWith('/providers')
-    || path.startsWith('/documents')
-    || path.startsWith('/licenses')
-  ) activeTo = '/organizations';
-  else if (path === '/' || path === '') activeTo = '/';
 
   return (
     <aside className="icon-rail" aria-label="Primary navigation">
@@ -68,17 +63,19 @@ export default function IconRail() {
               to={item.to}
               end={item.end}
               title={item.title}
+              aria-label={item.title}
+              aria-current={isActive ? 'page' : undefined}
               className={() => `icon-rail-btn ${isActive ? 'active' : ''}`}
             >
-              <Icon size={18} strokeWidth={1.75} />
+              <Icon size={18} strokeWidth={1.75} aria-hidden="true" />
             </NavLink>
           );
         })}
       </div>
       <div className="icon-rail-bottom">
-        <span className="icon-rail-brand">ECA</span>
-        <button type="button" className="icon-rail-btn" title="Sign out" onClick={logout}>
-          <LogOut size={18} strokeWidth={1.75} />
+        <span className="icon-rail-brand" aria-hidden="true">ECA</span>
+        <button type="button" className="icon-rail-btn" title="Sign out" aria-label="Sign out" onClick={logout}>
+          <LogOut size={18} strokeWidth={1.75} aria-hidden="true" />
         </button>
       </div>
     </aside>

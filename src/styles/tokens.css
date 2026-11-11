@@ -1,77 +1,162 @@
-/* GPA Clinic Management — global design tokens (single source of truth) */
+/* eClinicAssist / GPA — VIP Light design tokens (single source of truth) */
 :root {
-  /* Primary Navy */
+  /* Brand navy */
   --color-primary-dark: #001E3E;
   --color-primary-deep: #062C4E;
-  --color-primary: #002C52;
-  --color-secondary: #1E3A5F;
-  --color-text-deep: #1D293D;
+  --color-primary: #001E3E;
+  --color-secondary: #062C4E;
+  --color-text-deep: #102F50;
 
-  /* Blue Accent */
-  --color-accent: #005EA4;
+  /* Accents */
+  --color-accent: #0065A8;
+  --color-accent-hover: #00548C;
+  --color-cyan: #38C6D9;
+  --color-teal: #0D9488;
+  --color-teal-bright: #18C9A5;
   --color-slate: #4A647C;
   --color-slate-secondary: #5C758D;
   --color-muted-blue: #6B849C;
   --color-soft-blue: #8AA0B5;
-  --color-supporting-blue: #62748E;
+  --color-supporting-blue: #64748B;
 
-  /* Teal */
-  --color-teal: #0D9488;
-
-  /* Backgrounds */
-  --color-background: #F4F8FC;
+  /* Surfaces */
+  --color-background: #F5FAFD;
   --color-background-soft: #F2F5F7;
   --color-surface-soft: #F8FAFC;
   --color-background-light: #E8F2FA;
-  --color-accent-soft: #E4EEF6;
+  --color-accent-soft: #E8F3FA;
   --color-surface: #FFFFFF;
+  --color-row-hover: #F7FBFD;
+  --color-table-head: #F8FAFC;
 
   /* Borders */
-  --color-border: #D5E3EF;
-  --color-border-secondary: #DBE5EF;
+  --color-border: #DCE7F1;
+  --color-border-secondary: #DCE7F1;
   --color-border-soft: #E7EAEF;
   --color-border-supporting: #CAD5E2;
 
-  /* Status */
+  /* Semantic status */
   --color-success: #0D9488;
   --color-success-bg: #ECFDF5;
-  --color-info: #005EA4;
-  --color-neutral: #6B849C;
-  --color-warning-bg: #FFFBEB;
+  --color-info: #0065A8;
+  --color-info-bg: #E8F3FA;
+  --color-neutral: #64748B;
+  --color-neutral-bg: #EDF1F4;
   --color-warning: #92700C;
+  --color-warning-bg: #FFFBEB;
+  --color-warning-border: #F5E6B8;
   --color-danger: #C45C5C;
   --color-danger-bg: #FEF2F2;
+  --color-danger-border: #F3C8C8;
+  --color-pending: #0065A8;
+  --color-pending-bg: #E8F3FA;
+  --color-expired: #C45C5C;
+  --color-expired-bg: #FEF2F2;
+  --color-approved: #0D9488;
+  --color-approved-bg: #ECFDF5;
+  --color-missing: #D97706;
+  --color-missing-bg: #FFF8EB;
+  --color-expiring: #B45309;
+  --color-expiring-bg: #FFFBEB;
+  --color-ignored: #64748B;
+  --color-ignored-bg: #F1F5F9;
+  --color-available: #0D9488;
+  --color-available-bg: #ECFDF5;
 
-  /* Typography */
-  --color-text: #001E3E;
+  /* Typography colors */
+  --color-text: #102F50;
   --color-text-body: #314158;
-  --color-text-secondary: #4A647C;
-  --color-text-muted: #6B849C;
+  --color-text-secondary: #64748B;
+  --color-text-muted: #64748B;
   --color-text-soft: #90A1B9;
   --color-text-on-accent: #FFFFFF;
 
   /* Button system */
-  --btn-primary-bg: #005EA4;
+  --btn-primary-bg: #0065A8;
   --btn-primary-text: #FFFFFF;
-  --btn-primary-hover: #002C52;
-  --btn-secondary-bg: #E4EEF6;
-  --btn-secondary-text: #002C52;
-  --btn-secondary-border: #D5E3EF;
+  --btn-primary-hover: #00548C;
+  --btn-secondary-bg: #E8F3FA;
+  --btn-secondary-text: #001E3E;
+  --btn-secondary-border: #DCE7F1;
   --btn-outline-bg: #FFFFFF;
-  --btn-outline-border: #D5E3EF;
-  --btn-outline-text: #002C52;
+  --btn-outline-border: #DCE7F1;
+  --btn-outline-text: #001E3E;
   --btn-success-bg: #0D9488;
   --btn-success-text: #FFFFFF;
+  --btn-danger-bg: #C45C5C;
+  --btn-danger-text: #FFFFFF;
+  --btn-ghost-hover: #E8F3FA;
 
   /* Shadows & geometry */
   --shadow-sm: 0 2px 8px rgba(0, 30, 62, 0.06);
   --shadow-md: 0 8px 24px rgba(0, 30, 62, 0.1);
+  --shadow-lg: 0 20px 60px rgba(0, 30, 62, 0.18);
   --radius: 10px;
-  --radius-sm: 7px;
-  --sidebar-width: 252px;
+  --radius-sm: 8px;
+  --radius-lg: 14px;
+  --radius-full: 999px;
+
+  /* Layout */
+  --rail-width: 74px;
+  --sidebar-width: 228px;
+  --sidebar-width-collapsed: 72px;
+  /* Prefer % over 100vw to avoid scrollbar-gutter / subpixel horizontal overflow */
+  --drawer-width: min(480px, 100%);
+  --modal-width: min(780px, 100%);
+  --modal-width-wide: min(960px, 100%);
+  --control-height: 38px;
+  --control-height-sm: 34px;
+  --topbar-height: 56px;
   --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
-  /* Legacy short aliases → GPA tokens (no second theme) */
+  /* Spacing scale (4/8) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* Type scale */
+  --text-xs: 10px;
+  --text-sm: 11px;
+  --text-md: 12px;
+  --text-base: 13px;
+  --text-lg: 15px;
+  --text-xl: 18px;
+  --text-2xl: 22px;
+  --text-3xl: 26px;
+  --text-display: 28px;
+
+  /* Z-index layers */
+  --z-sticky: 10;
+  --z-rail: 12;
+  --z-scrim: 19;
+  --z-sidebar: 25;
+  --z-float: 30;
+  --z-dropdown: 40;
+  --z-modal: 50;
+  --z-drawer: 60;
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --duration-fast: 150ms;
+  --duration: 200ms;
+  --duration-slow: 250ms;
+
+  /* Focus */
+  --focus-ring: 0 0 0 3px rgba(0, 101, 168, 0.22);
+
+  /* Scrollbars — VIP Light thin (5–6px) */
+  --scrollbar-size: 5px;
+  --scrollbar-track: var(--color-background-light);
+  --scrollbar-thumb: var(--color-soft-blue);
+  --scrollbar-thumb-hover: var(--color-slate-secondary);
+  --scrollbar-thumb-active: var(--color-slate);
+
+  /* Legacy short aliases */
   --bg: var(--color-background);
   --navy: var(--color-primary);
   --navy-2: var(--color-secondary);
@@ -84,6 +169,6 @@
   --muted: var(--color-text-muted);
   --accent: var(--color-accent);
   --accent-soft: var(--color-accent-soft);
-  --accent-hover: var(--color-primary);
+  --accent-hover: var(--color-accent-hover);
   --teal: var(--color-teal);
 }

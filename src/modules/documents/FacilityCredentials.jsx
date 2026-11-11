@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import api from '../../api/client';
 import DirectoryProfileShell from '../../components/layout/DirectoryProfileShell';
+import StatusBadge from '../../components/common/StatusBadge';
+import IconButton, { RowActions } from '../../components/common/IconButton';
 import { currentListPath, saveListReturn } from '../../navigation/listReturn';
 import { fmt } from '../../utils/format';
 
@@ -31,8 +33,10 @@ const SECURE_IMAGE_PDF_ACCEPT = '.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg
 const BANKING_ACCEPT = SECURE_IMAGE_PDF_ACCEPT;
 const OTHER_DOCS_ACCEPT = SECURE_IMAGE_PDF_ACCEPT;
 const AGREEMENTS_ACCEPT = SECURE_IMAGE_PDF_ACCEPT;
+const IRS_ACCEPT = SECURE_IMAGE_PDF_ACCEPT;
 const OTHER_DOCUMENTS_CATEGORY = 'other';
 const AGREEMENTS_CATEGORY = 'agreements';
+const IRS_CATEGORY = 'irs';
 
 function isInsuranceType(type) {
   return INSURANCE_TYPES.has(type);
@@ -50,11 +54,24 @@ function isAgreementsCategory(key) {
   return key === AGREEMENTS_CATEGORY;
 }
 
+function isIrsCategory(key) {
+  return key === IRS_CATEGORY;
+}
+
 function usesSecureImagePdfAccept(type, categoryKey) {
   return isInsuranceType(type)
     || isBankingType(type)
     || isOtherDocumentsCategory(categoryKey)
-    || isAgreementsCategory(categoryKey);
+    || isAgreementsCategory(categoryKey)
+    || isIrsCategory(categoryKey);
+}
+
+function formatFileSize(bytes) {
+  const n = Number(bytes);
+  if (!Number.isFinite(n) || n < 0) return null;
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(n < 10 * 1024 ? 1 : 0)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(n < 10 * 1024 * 1024 ? 1 : 0)} MB`;
 }
 
 function isVoidedCheckType(type) {
@@ -201,6 +218,7 @@ function DocumentPreviewPane({
   previewUrl,
   mimeType,
   originalName,
+  sizeBytes,
   uploadedAt,
   zoom,
   setZoom,
@@ -212,6 +230,7 @@ function DocumentPreviewPane({
   onPickFile,
   onReplace,
   onRemove,
+  onDownload,
   hasFile,
   accept,
   docTitle = 'Document',
@@ -222,6 +241,7 @@ function DocumentPreviewPane({
   const isPdf = mimeType === 'application/pdf' || /\.pdf$/i.test(originalName || '');
   const isImage = (mimeType || '').startsWith('image/') || /\.(jpe?g|png)$/i.test(originalName || '');
   const [dragOver, setDragOver] = useState(false);
+  const sizeLabel = formatFileSize(sizeBytes);
 
   function handleDrop(e) {
     e.preventDefault();
@@ -237,6 +257,7 @@ function DocumentPreviewPane({
           <b>{docTitle}</b>
           <small>
             {originalName || (hasFile ? 'Attached file' : 'No document uploaded')}
+            {hasFile && sizeLabel ? ` · ${sizeLabel}` : ''}
             {hasFile && uploadedAt ? ` · Uploaded ${fmt(uploadedAt)}` : ''}
           </small>
         </div>
@@ -260,6 +281,11 @@ function DocumentPreviewPane({
                   </button>
                 </>
               )}
+              {onDownload && (
+                <button type="button" className="secondary" title="Download document" onClick={onDownload}>
+                  <Download size={12} /> Download
+                </button>
+              )}
               <label className="secondary upload-action" title="Replace document">
                 Replace
                 <input hidden type="file" accept={accept} onChange={e => onReplace(e.target.files?.[0])} />
@@ -272,16 +298,20 @@ function DocumentPreviewPane({
 
       {!hasFile && (
         <label
-          className={`ins-dropzone ${dragOver ? 'drag-over' : ''}`}
+          className={`ins-dropzone ${dragOver ? 'drag-over' : ''} ${uploading ? 'uploading' : ''}`}
           onDragOver={e => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={handleDrop}
         >
           <Upload size={22} />
           <b>{uploading ? 'Uploading…' : uploadLabel}</b>
-          <span>PDF, JPG, JPEG, or PNG · drag & drop · max 20 MB</span>
+          <span>{uploading ? 'Please wait while the file is stored securely.' : 'PDF, JPG, JPEG, or PNG · drag & drop · max 20 MB'}</span>
           <input hidden type="file" accept={accept} disabled={uploading} onChange={e => onPickFile(e.target.files?.[0])} />
         </label>
+      )}
+
+      {hasFile && uploading && (
+        <div className="ins-extract-banner">Uploading replacement…</div>
       )}
 
       {hasFile && previewUrl && (
@@ -302,6 +332,10 @@ function DocumentPreviewPane({
             )}
           </div>
         </div>
+      )}
+
+      {hasFile && !previewUrl && !uploading && (
+        <div className="ins-preview-fallback muted">Loading document preview…</div>
       )}
 
       {extracting && <div className="ins-extract-banner">{extractingLabel}</div>}
@@ -367,12 +401,17 @@ export default function FacilityCredentials() {
     || isAgreementsCategory(editing?.category)
     || isAgreementsCategory(form.category)
   );
+  const irsMode = !otherMode && !agreementsMode && (
+    isIrsCategory(category)
+    || isIrsCategory(editing?.category)
+    || isIrsCategory(form.category)
+  );
   // Other Documents always uses the custom-document UI, even if the free-text type
   // name happens to match an insurance/banking catalog type.
-  const insuranceMode = !otherMode && !agreementsMode && isInsuranceType(activeType);
-  const bankingMode = !otherMode && !agreementsMode && isBankingType(activeType);
+  const insuranceMode = !otherMode && !agreementsMode && !irsMode && isInsuranceType(activeType);
+  const bankingMode = !otherMode && !agreementsMode && !irsMode && isBankingType(activeType);
   const voidedCheckMode = isVoidedCheckType(activeType);
-  const splitDocMode = insuranceMode || bankingMode || otherMode || agreementsMode;
+  const splitDocMode = insuranceMode || bankingMode || otherMode || agreementsMode || irsMode;
 
   async function loadShell() {
     setProvidersLoading(true);
@@ -656,7 +695,9 @@ export default function FacilityCredentials() {
         ? 'insurance'
         : (isOtherDocumentsCategory(category)
           ? OTHER_DOCUMENTS_CATEGORY
-          : (isAgreementsCategory(category) ? AGREEMENTS_CATEGORY : category)));
+          : (isAgreementsCategory(category)
+            ? AGREEMENTS_CATEGORY
+            : (isIrsCategory(category) ? IRS_CATEGORY : category))));
     const body = {
       title: (form.title || type || 'Credential').trim(),
       type,
@@ -845,14 +886,14 @@ export default function FacilityCredentials() {
       }
     }
 
-    if (otherMode || agreementsMode) {
+    if (otherMode || agreementsMode || irsMode) {
       if (!String(form.title || '').trim()) {
         setError('Credential Name is required.');
         setSaving(false);
         return;
       }
       if (!String(form.type || '').trim()) {
-        setError('Credential Type is required.');
+        setError('Document Type is required.');
         setSaving(false);
         return;
       }
@@ -867,7 +908,9 @@ export default function FacilityCredentials() {
           ? 'insurance'
           : (otherMode
             ? OTHER_DOCUMENTS_CATEGORY
-            : (agreementsMode ? AGREEMENTS_CATEGORY : category))),
+            : (agreementsMode
+              ? AGREEMENTS_CATEGORY
+              : (irsMode ? IRS_CATEGORY : category)))),
       facilityId: id,
       organizationId: detail?.organizationId || detail?.organization?.id || detail?.practice?.organizationId || undefined,
       practiceId: detail?.practiceId || undefined,
@@ -1173,30 +1216,36 @@ export default function FacilityCredentials() {
                 Ignore this credential
               </label>
             </div>
-            <button type="button" className="primary" onClick={openCreateModal}>
+            <button
+              type="button"
+              className="primary"
+              onClick={openCreateModal}
+              aria-label={`Add new ${selectedType || categories.find(c => c.key === category)?.label || 'credential'}`}
+              title={`Add new ${selectedType || categories.find(c => c.key === category)?.label || 'credential'}`}
+            >
               <Plus size={15} /> Add New
             </button>
           </div>
 
-          <div className="table-scroll">
+          <div className="table-scroll table-cards">
             <table className="brand-table">
               <thead>
                 <tr>
-                  <th>S. NO</th>
-                  <th>CREDENTIAL</th>
-                  <th>EXPIRATION DATE</th>
-                  <th>STATUS</th>
-                  <th>CREATED BY</th>
-                  <th>FILE</th>
-                  <th>ACTIONS</th>
+                  <th className="col-index">#</th>
+                  <th>Credential</th>
+                  <th className="col-date">Expires</th>
+                  <th className="col-status">Status</th>
+                  <th className="col-mid">Created By</th>
+                  <th className="col-narrow">File</th>
+                  <th className="col-actions action-head">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {tableRows.map((row, i) => (
                   <tr key={row.id}>
-                    <td>{i + 1}</td>
-                    <td className="cell-strong">
-                      <button type="button" className="linkish" onClick={() => setDetailView(row)}>{row.title}</button>
+                    <td className="col-index" data-label="#">{i + 1}</td>
+                    <td className="cell-strong" data-label="Credential">
+                      <button type="button" className="linkish" title={row.title} onClick={() => setDetailView(row)}>{row.title}</button>
                       {isInsuranceType(row.type) && row.policyNumber && (
                         <div className="muted" style={{ fontSize: 10 }}>Policy {row.policyNumber}</div>
                       )}
@@ -1206,19 +1255,18 @@ export default function FacilityCredentials() {
                         </div>
                       )}
                     </td>
-                    <td>{fmt(row.expiresAt)}</td>
-                    <td><span className={`status-pill status-${statusDot(row.attention)}`}>{row.attention?.replace('_', ' ')}</span></td>
-                    <td>{row.createdBy?.name || '—'}</td>
-                    <td>{row.storageKey ? 'Yes' : 'No'}</td>
-                    <td>
-                      <div className="row-actions">
+                    <td className="col-date" data-label="Expires">{fmt(row.expiresAt)}</td>
+                    <td className="col-status" data-label="Status"><StatusBadge value={row.attention} variant="pill" /></td>
+                    <td className="col-mid" data-label="Created By">
+                      <span className="cell-clip" title={row.createdBy?.name || '—'}>{row.createdBy?.name || '—'}</span>
+                    </td>
+                    <td className="col-narrow" data-label="File">{row.storageKey ? 'Yes' : 'No'}</td>
+                    <td className="col-actions" data-label="Actions">
+                      <RowActions>
                         {row.storageKey && (
-                          <button type="button" className="icon-round" title="Download" onClick={() => download(row)}>
-                            <Download size={13} />
-                          </button>
+                          <IconButton icon={Download} label="Download" tone="download" onClick={() => download(row)} />
                         )}
-                        <label className="icon-round upload-action" title="Upload">
-                          <Upload size={13} />
+                        <IconButton as="label" icon={Upload} label="Upload" tone="upload" className="upload-action">
                           <input
                             hidden
                             type="file"
@@ -1229,14 +1277,10 @@ export default function FacilityCredentials() {
                             }
                             onChange={e => upload(row, e.target.files?.[0])}
                           />
-                        </label>
-                        <button type="button" className="icon-round" title="Edit" onClick={() => openEditModal(row)}>
-                          <Pencil size={13} />
-                        </button>
-                        <button type="button" className="icon-round danger" title="Delete" onClick={() => remove(row)}>
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
+                        </IconButton>
+                        <IconButton icon={Pencil} label="Edit" tone="edit" onClick={() => openEditModal(row)} />
+                        <IconButton icon={Trash2} label="Delete" tone="delete" onClick={() => remove(row)} />
+                      </RowActions>
                     </td>
                   </tr>
                 ))}
@@ -1261,7 +1305,7 @@ export default function FacilityCredentials() {
             </div>
             <div className="form-grid cred-detail-grid">
               <div><b>Type</b><div>{detailView.type}</div></div>
-              <div><b>Status</b><div>{detailView.attention}</div></div>
+              <div><b>Status</b><div><StatusBadge value={detailView.attention} variant="pill" /></div></div>
               <div><b>{issuedDateLabel(detailView.type)}</b><div>{fmt(detailView.issuedAt)}</div></div>
               <div><b>Expiration</b><div>{fmt(detailView.expiresAt)}</div></div>
               <div><b>Warning Days</b><div>{detailView.warningDays || 30}</div></div>
@@ -1305,7 +1349,13 @@ export default function FacilityCredentials() {
                 </>
               )}
               <div className="span-2"><b>Notes</b><div>{detailView.notes || '—'}</div></div>
-              <div><b>Document</b><div>{detailView.originalName || (detailView.storageKey ? 'Attached' : 'None')}</div></div>
+              <div>
+                <b>Document</b>
+                <div>
+                  {detailView.originalName || (detailView.storageKey ? 'Attached' : 'None')}
+                  {detailView.storageKey && formatFileSize(detailView.sizeBytes) ? ` · ${formatFileSize(detailView.sizeBytes)}` : ''}
+                </div>
+              </div>
               {detailView.uploadedAt && <div><b>Uploaded</b><div>{fmt(detailView.uploadedAt)}</div></div>}
             </div>
             <div className="modal-footer">
@@ -1333,14 +1383,18 @@ export default function FacilityCredentials() {
                         ? `Edit ${form.type || 'other document'}`
                         : (agreementsMode
                           ? `Edit ${form.type || 'agreement / contract'}`
-                          : 'Edit credential')))
+                          : (irsMode
+                            ? `Edit ${form.type || 'IRS document'}`
+                            : 'Edit credential'))))
                     : (bankingMode
                       ? `Add ${form.type || 'banking credential'}`
                       : (otherMode
                         ? 'Add other document'
                         : (agreementsMode
                           ? `Add ${form.type || selectedType || 'agreement / contract'}`
-                          : 'Add credential')))}
+                          : (irsMode
+                            ? `Add ${form.type || selectedType || 'IRS document'}`
+                            : 'Add credential'))))}
                 </h2>
               </div>
               <button type="button" className="icon-button" onClick={() => closeModal(true)}><X size={20} /></button>
@@ -1352,6 +1406,7 @@ export default function FacilityCredentials() {
                   previewUrl={previewUrl}
                   mimeType={editing?.mimeType}
                   originalName={editing?.originalName}
+                  sizeBytes={editing?.sizeBytes}
                   uploadedAt={editing?.uploadedAt}
                   zoom={zoom}
                   setZoom={setZoom}
@@ -1361,28 +1416,39 @@ export default function FacilityCredentials() {
                   uploading={uploading}
                   extracting={extracting}
                   hasFile={!!editing?.storageKey}
-                  accept={otherMode || agreementsMode ? (agreementsMode ? AGREEMENTS_ACCEPT : OTHER_DOCS_ACCEPT) : BANKING_ACCEPT}
+                  accept={
+                    irsMode
+                      ? IRS_ACCEPT
+                      : (otherMode || agreementsMode
+                        ? (agreementsMode ? AGREEMENTS_ACCEPT : OTHER_DOCS_ACCEPT)
+                        : BANKING_ACCEPT)
+                  }
                   docTitle={
-                    otherMode || agreementsMode
-                      ? 'Document'
-                      : (bankingMode ? (voidedCheckMode ? 'Voided check' : 'Bank letter') : 'Policy document')
+                    irsMode
+                      ? (form.type || selectedType || 'IRS document')
+                      : (otherMode || agreementsMode
+                        ? 'Document'
+                        : (bankingMode ? (voidedCheckMode ? 'Voided check' : 'Bank letter') : 'Policy document'))
                   }
                   uploadLabel={
-                    agreementsMode
-                      ? 'Upload agreement / contract'
-                      : (otherMode
-                        ? 'Upload document'
-                        : (bankingMode ? (voidedCheckMode ? 'Upload voided check' : 'Upload bank letter') : 'Upload insurance policy'))
+                    irsMode
+                      ? 'Upload W-9 / IRS document'
+                      : (agreementsMode
+                        ? 'Upload agreement / contract'
+                        : (otherMode
+                          ? 'Upload document'
+                          : (bankingMode ? (voidedCheckMode ? 'Upload voided check' : 'Upload bank letter') : 'Upload insurance policy')))
                   }
                   extractingLabel={bankingMode ? 'Extracting banking fields from document…' : 'Extracting policy fields from document…'}
                   onPickFile={handlePickFile}
                   onReplace={handleReplaceFile}
                   onRemove={handleRemoveFile}
+                  onDownload={editing?.storageKey ? () => download(editing) : undefined}
                   onDropFile={editing?.storageKey ? handleReplaceFile : handlePickFile}
                 />
 
                 <div className="ins-form-pane">
-                  {extraction && !otherMode && !agreementsMode && (
+                  {extraction && !otherMode && !agreementsMode && !irsMode && (
                     <div className={`ins-ocr-banner ${extraction.ok ? 'ok' : 'warn'}`}>
                       {extraction.ok
                         ? 'Suggested values extracted from the document. Review each field, correct as needed, then confirm before saving. Nothing is saved until you confirm.'
@@ -1413,7 +1479,7 @@ export default function FacilityCredentials() {
                         </datalist>
                       </label>
                     ) : (
-                      <label>Type
+                      <label>{irsMode ? 'Document Type' : 'Type'}
                         <select
                           required
                           value={form.type || ''}
@@ -1421,14 +1487,18 @@ export default function FacilityCredentials() {
                             const nextType = e.target.value;
                             const typeCategoryKey = agreementsMode
                               ? AGREEMENTS_CATEGORY
-                              : (bankingMode ? 'banking' : 'insurance');
+                              : (irsMode
+                                ? IRS_CATEGORY
+                                : (bankingMode ? 'banking' : 'insurance'));
                             const meta = (categories.find(c => c.key === typeCategoryKey)?.types || [])
                               .find(t => t.type === nextType);
                             setForm(prev => ({
                               ...prev,
                               type: nextType,
                               title: !prev.title || prev.title === prev.type ? nextType : prev.title,
-                              category: agreementsMode ? AGREEMENTS_CATEGORY : prev.category,
+                              category: agreementsMode
+                                ? AGREEMENTS_CATEGORY
+                                : (irsMode ? IRS_CATEGORY : prev.category),
                               required: meta ? !!meta.required : !!prev.required,
                               reportingRequired: meta ? !!meta.reporting : !!prev.reportingRequired,
                               bankAccountType: isVoidedCheckType(nextType) && !prev.bankAccountType ? 'Checking' : prev.bankAccountType
@@ -1438,7 +1508,9 @@ export default function FacilityCredentials() {
                           <option value="">Select…</option>
                           {(categories.find(c => c.key === (agreementsMode
                             ? AGREEMENTS_CATEGORY
-                            : (bankingMode ? 'banking' : 'insurance')))?.types || []).map(t => (
+                            : (irsMode
+                              ? IRS_CATEGORY
+                              : (bankingMode ? 'banking' : 'insurance'))))?.types || []).map(t => (
                             <option key={t.type} value={t.type}>{t.type}</option>
                           ))}
                         </select>
@@ -1545,7 +1617,7 @@ export default function FacilityCredentials() {
                       <span className="label-with-conf"><ConfLabel field="issuedAt" /></span>
                       <input type="date" value={form.issuedAt || ''} onChange={e => setField('issuedAt', e.target.value)} />
                     </label>
-                    {(insuranceMode || otherMode || agreementsMode) && (
+                    {(insuranceMode || otherMode || agreementsMode || irsMode) && (
                       <label>Expiration Date
                         <span className="label-with-conf"><ConfLabel field="expiresAt" /></span>
                         <input type="date" value={form.expiresAt || ''} onChange={e => setField('expiresAt', e.target.value)} />
@@ -1562,7 +1634,7 @@ export default function FacilityCredentials() {
                       </select>
                     </label>
 
-                    {!otherMode && !agreementsMode && (
+                    {!otherMode && !agreementsMode && !irsMode && (
                       <>
                         {!facilityOptions.length ? (
                           <div className="span-2 field-help">No facilities available in your authorized organization scope.</div>
@@ -1596,11 +1668,51 @@ export default function FacilityCredentials() {
                       </>
                     )}
 
+                    {irsMode && (
+                      <div className="span-2">
+                        <div className="field-help" style={{ marginBottom: 6 }}>
+                          Uploaded documents
+                          {form.type || selectedType ? ` · ${form.type || selectedType}` : ''}
+                        </div>
+                        <div className="irs-file-list">
+                          {rows
+                            .filter(r => (!form.type && !selectedType) || r.type === (form.type || selectedType))
+                            .filter(r => r.storageKey)
+                            .map(r => (
+                              <button
+                                key={r.id}
+                                type="button"
+                                className={r.id === editing?.id ? 'active' : ''}
+                                onClick={async () => {
+                                  if (r.id === editing?.id) return;
+                                  if (sessionDraftId) {
+                                    if (!confirm('Switching will discard the current draft. Continue?')) return;
+                                    try { await api.delete(`/credentials/${sessionDraftId}`); } catch { /* may lack delete role */ }
+                                    setSessionDraftId(null);
+                                  }
+                                  await openEditModal(r);
+                                }}
+                              >
+                                {r.originalName || r.title}
+                                {formatFileSize(r.sizeBytes) ? ` · ${formatFileSize(r.sizeBytes)}` : ''}
+                              </button>
+                            ))}
+                          {!rows.some(r => r.storageKey && ((!form.type && !selectedType) || r.type === (form.type || selectedType))) && (
+                            <span className="muted">
+                              {editing?.storageKey
+                                ? `${editing.originalName || 'Current file'}${formatFileSize(editing.sizeBytes) ? ` · ${formatFileSize(editing.sizeBytes)}` : ''} (save to list)`
+                                : 'No uploaded documents yet. Upload on the left, then save.'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     <label className="span-2">Notes<textarea rows="2" value={form.notes || ''} onChange={e => setField('notes', e.target.value)} /></label>
                     <label><span><input type="checkbox" checked={!!form.required} onChange={e => setField('required', e.target.checked)} /> Required</span></label>
                     <label><span><input type="checkbox" checked={!!form.reportingRequired} onChange={e => setField('reportingRequired', e.target.checked)} /> Reporting requirement</span></label>
                     <label><span><input type="checkbox" checked={!!form.ignored} onChange={e => setField('ignored', e.target.checked)} /> Ignore</span></label>
-                    {extraction?.ok && !otherMode && !agreementsMode && (
+                    {extraction?.ok && !otherMode && !agreementsMode && !irsMode && (
                       <label className="span-2 ocr-confirm">
                         <span>
                           <input type="checkbox" checked={ocrConfirmed} onChange={e => setOcrConfirmed(e.target.checked)} />

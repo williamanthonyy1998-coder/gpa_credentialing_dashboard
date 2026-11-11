@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FileText, Plus, Search, X } from 'lucide-react';
+import { Ban, Download, FileText, FolderOpen, Pencil, Plus, Power, Search, Trash2, Upload, X } from 'lucide-react';
 import api from '../../api/client';
 import { config } from '../../config/resources';
 import PageHeader from '../../components/common/PageHeader';
 import StatusBadge from '../../components/common/StatusBadge';
+import IconButton, { RowActions } from '../../components/common/IconButton';
+import CellText from '../../components/common/CellText';
 import { fmt, nested } from '../../utils/format';
 import { currentListPath, LIST_KEYS, saveListReturn } from '../../navigation/listReturn';
 
@@ -258,10 +260,19 @@ export default function RecordPage({ type, scopedId, orgName }) {
             className="primary"
             onClick={() => {
               const path = currentListPath(window.location.pathname, window.location.search);
-              if (type === 'practices') nav('/practices/new/profile', { state: { returnTo: path, listKey: 'practices' } });
-              else if (type === 'facilities') nav('/facilities/new/profile', { state: { returnTo: path, listKey: 'facilities' } });
-              else if (type === 'providers') nav('/providers/new/profile', { state: { returnTo: path, listKey: 'providers' } });
-              else start();
+              if (type === 'practices') {
+                nav('/practices/new/profile', {
+                  state: { returnTo: path, listKey: 'practices', organizationId: scopedId || undefined }
+                });
+              } else if (type === 'facilities') {
+                nav('/facilities/new/profile', {
+                  state: { returnTo: path, listKey: 'facilities', organizationId: scopedId || undefined }
+                });
+              } else if (type === 'providers') {
+                nav('/providers/new/profile', {
+                  state: { returnTo: path, listKey: 'providers', organizationId: scopedId || undefined }
+                });
+              } else start();
             }}
           >
             <Plus size={17} /> Add {cfg.singular}
@@ -282,12 +293,24 @@ export default function RecordPage({ type, scopedId, orgName }) {
           ) : null}
           <span className="record-count">{loading ? 'Loading…' : `${rows.length} records`}</span>
         </div>
-        <div className="table-scroll">
+        <div className="table-scroll table-cards">
           <table>
             <thead>
               <tr>
-                {cfg.columns.map(c => <th key={c[0]}>{c[1]}</th>)}
-                <th className="action-head">Actions</th>
+                {cfg.columns.map(c => (
+                  <th
+                    key={c[0]}
+                    className={
+                      c[0] === 'status' ? 'col-status'
+                        : /At$|date|expires|created|due|effective|end/i.test(c[0]) ? 'col-date'
+                        : /npi|taxId|phone|code|type|state|number/i.test(c[0]) ? 'col-narrow'
+                        : undefined
+                    }
+                  >
+                    {c[1]}
+                  </th>
+                ))}
+                <th className="action-head col-actions">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -300,42 +323,91 @@ export default function RecordPage({ type, scopedId, orgName }) {
                       <FileText size={25} />
                       <b>No records found</b>
                       <span>Create a record or change your search.</span>
+                      <button
+                        type="button"
+                        className="primary"
+                        style={{ marginTop: 10 }}
+                        onClick={() => {
+                          const path = currentListPath(window.location.pathname, window.location.search);
+                          if (type === 'practices') {
+                            nav('/practices/new/profile', {
+                              state: { returnTo: path, listKey: 'practices', organizationId: scopedId || undefined }
+                            });
+                          } else if (type === 'facilities') {
+                            nav('/facilities/new/profile', {
+                              state: { returnTo: path, listKey: 'facilities', organizationId: scopedId || undefined }
+                            });
+                          } else if (type === 'providers') {
+                            nav('/providers/new/profile', {
+                              state: { returnTo: path, listKey: 'providers', organizationId: scopedId || undefined }
+                            });
+                          } else start();
+                        }}
+                      >
+                        <Plus size={15} /> Add {cfg.singular}
+                      </button>
                     </div>
                   </td>
                 </tr>
               ) : rows.map(row => (
                 <tr key={row.id}>
-                  {cfg.columns.map(c => (
-                    <td key={c[0]}>
-                      {c[0] === 'status'
-                        ? <StatusBadge value={nested(row, c[0])} />
-                        : <span className={c[0] === 'title' || c[0] === 'legalName' || c[0] === 'name' ? 'cell-strong' : ''}>{fmt(nested(row, c[0]))}</span>}
-                    </td>
-                  ))}
-                  <td>
-                    <div className="row-actions">
+                  {cfg.columns.map(c => {
+                    const raw = nested(row, c[0]);
+                    const text = fmt(raw);
+                    const isPrimary = c[0] === 'title' || c[0] === 'legalName' || c[0] === 'name';
+                    return (
+                      <td
+                        key={c[0]}
+                        data-label={c[1]}
+                        className={
+                          c[0] === 'status' ? 'col-status'
+                            : /At$|date|expires|created|due|effective|end/i.test(c[0]) ? 'col-date'
+                            : /npi|taxId|phone|code|type|state|number/i.test(c[0]) ? 'col-narrow'
+                            : undefined
+                        }
+                      >
+                        {c[0] === 'status'
+                          ? <StatusBadge value={raw} />
+                          : <CellText strong={isPrimary} title={text}>{text}</CellText>}
+                      </td>
+                    );
+                  })}
+                  <td className="col-actions" data-label="Actions">
+                    <RowActions>
                       {(WORKSPACE_TYPES.has(type) || PROFILE_TYPES.has(type)) && (
-                        <button className="small-action" onClick={() => openRecord(row)}>
-                          {WORKSPACE_TYPES.has(type) ? 'Open Workspace' : 'Open Profile'}
-                        </button>
+                        <IconButton
+                          icon={FolderOpen}
+                          label={WORKSPACE_TYPES.has(type) ? 'Open Workspace' : 'Open Profile'}
+                          tone="view"
+                          onClick={() => openRecord(row)}
+                        />
                       )}
                       {type === 'organizations' && (row.status === 'ACTIVE' || row.status === 'INACTIVE') && (
-                        <button className="small-action" onClick={() => toggleStatus(row)}>
-                          {row.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
-                        </button>
+                        <IconButton
+                          icon={row.status === 'ACTIVE' ? Ban : Power}
+                          label={row.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                          tone={row.status === 'ACTIVE' ? 'deactivate' : 'activate'}
+                          onClick={() => toggleStatus(row)}
+                        />
                       )}
                       {type === 'documents' && (
                         <>
-                          {row.storageKey ? <button className="small-action" onClick={() => downloadFile(row)}>Download</button> : null}
-                          <label className="small-action upload-action">
-                            Upload
+                          {row.storageKey ? (
+                            <IconButton
+                              icon={Download}
+                              label="Download"
+                              tone="download"
+                              onClick={() => downloadFile(row)}
+                            />
+                          ) : null}
+                          <IconButton as="label" icon={Upload} label="Upload" tone="upload" className="upload-action">
                             <input type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xlsx" onChange={e => uploadFile(row, e.target.files?.[0])} hidden />
-                          </label>
+                          </IconButton>
                         </>
                       )}
-                      <button className="small-action" onClick={() => start(row)}>Edit</button>
-                      <button className="small-action danger-text" onClick={() => remove(row)}>Delete</button>
-                    </div>
+                      <IconButton icon={Pencil} label="Edit" tone="edit" onClick={() => start(row)} />
+                      <IconButton icon={Trash2} label="Delete" tone="delete" onClick={() => remove(row)} />
+                    </RowActions>
                   </td>
                 </tr>
               ))}

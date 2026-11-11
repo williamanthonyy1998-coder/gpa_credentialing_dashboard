@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Inbox, Plus, RefreshCw, Send, X } from 'lucide-react';
+import { ArrowRightLeft, Eye, Inbox, Plus, RefreshCw, Send, X } from 'lucide-react';
 import api from '../../api/client';
 import PageHeader from '../../components/common/PageHeader';
 import StatCard from '../../components/common/StatCard';
 import StatusBadge from '../../components/common/StatusBadge';
+import IconButton, { RowActions } from '../../components/common/IconButton';
+import CellText from '../../components/common/CellText';
 import { fmt } from '../../utils/format';
 
 const WIZARD_STEPS = [
@@ -152,16 +154,16 @@ export default function IntakePage() {
         <div className="table-toolbar">
           <span className="record-count">{loading ? 'Loading…' : `${rows.length} requests`}</span>
         </div>
-        <div className="table-scroll">
+        <div className="table-scroll table-cards">
           <table>
             <thead>
               <tr>
                 <th>Subject</th>
-                <th>Type</th>
+                <th className="col-narrow">Type</th>
                 <th>Contact</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th className="action-head">Actions</th>
+                <th className="col-status">Status</th>
+                <th className="col-date">Created</th>
+                <th className="action-head col-actions">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -176,41 +178,42 @@ export default function IntakePage() {
                 </tr>
               ) : rows.map(row => (
                 <tr key={row.id}>
-                  <td><span className="cell-strong">{row.subjectName || row.subject || '—'}</span></td>
-                  <td>{fmt(row.intakeType || row.type)}</td>
-                  <td>
-                    {row.contactName || '—'}
-                    <div className="muted" style={{ fontSize: 9 }}>{row.contactEmail || ''}</div>
+                  <td data-label="Subject">
+                    <CellText strong title={row.subjectName || row.subject || '—'}>{row.subjectName || row.subject || '—'}</CellText>
                   </td>
-                  <td><StatusBadge value={row.status || 'PENDING'} /></td>
-                  <td>{fmt(row.createdAt)}</td>
-                  <td>
-                    <div className="row-actions">
-                      <button
-                        type="button"
-                        className="small-action"
+                  <td className="col-narrow" data-label="Type">{fmt(row.intakeType || row.type)}</td>
+                  <td data-label="Contact">
+                    <CellText title={[row.contactName, row.contactEmail].filter(Boolean).join(' · ') || '—'}>
+                      {row.contactName || '—'}
+                    </CellText>
+                    {row.contactEmail ? <div className="muted" style={{ fontSize: 9 }}>{row.contactEmail}</div> : null}
+                  </td>
+                  <td className="col-status" data-label="Status"><StatusBadge value={row.status || 'PENDING'} /></td>
+                  <td className="col-date" data-label="Created">{fmt(row.createdAt)}</td>
+                  <td className="col-actions" data-label="Actions">
+                    <RowActions>
+                      <IconButton
+                        icon={Send}
+                        label="Send"
+                        tone="view"
                         disabled={!!actionBusy}
                         onClick={() => runAction(row.id, 'send')}
-                      >
-                        Send
-                      </button>
-                      <button
-                        type="button"
-                        className="small-action"
+                      />
+                      <IconButton
+                        icon={Eye}
+                        label="Review"
+                        tone="history"
                         disabled={!!actionBusy}
                         onClick={() => runAction(row.id, 'review')}
-                      >
-                        Review
-                      </button>
-                      <button
-                        type="button"
-                        className="small-action"
+                      />
+                      <IconButton
+                        icon={ArrowRightLeft}
+                        label="Convert"
+                        tone="activate"
                         disabled={!!actionBusy}
                         onClick={() => runAction(row.id, 'convert')}
-                      >
-                        Convert
-                      </button>
-                    </div>
+                      />
+                    </RowActions>
                   </td>
                 </tr>
               ))}

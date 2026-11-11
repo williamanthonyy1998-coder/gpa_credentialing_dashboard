@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Download, FileText, Plus, RefreshCw, Trash2, Upload, X } from 'lucide-react';
+import { Ban, Download, Eye, FileText, Pencil, Plus, RefreshCw, Trash2, Upload, X } from 'lucide-react';
 import api from '../../api/client';
 import PageHeader from '../../components/common/PageHeader';
 import StatusBadge from '../../components/common/StatusBadge';
+import IconButton, { MoreActions, RowActions } from '../../components/common/IconButton';
 import { fmt } from '../../utils/format';
 
 export default function CredentialsCenter() {
@@ -190,19 +191,27 @@ export default function CredentialsCenter() {
               </select>
               <input placeholder="Search credential" value={filters.q} onChange={e => setFilters(f => ({ ...f, q: e.target.value }))} onKeyDown={e => e.key === 'Enter' && load()} />
             </div>
-            <button className="primary" onClick={() => { setEditing(null); setModal(true); }}><Plus size={15} /> Add new</button>
+            <button
+              type="button"
+              className="primary"
+              onClick={() => { setEditing(null); setModal(true); }}
+              aria-label={`Add new ${categories.find(c => c.key === category)?.label || 'credential'}`}
+              title={`Add new ${categories.find(c => c.key === category)?.label || 'credential'}`}
+            >
+              <Plus size={15} /> Add new
+            </button>
           </div>
-          <div className="table-scroll">
+          <div className="table-scroll table-cards">
             <table>
               <thead>
                 <tr>
                   <th>Credential Name</th>
-                  <th>Expiration</th>
-                  <th>Attention</th>
-                  <th>Created At</th>
-                  <th>Created By</th>
-                  <th>File</th>
-                  <th className="action-head">Actions</th>
+                  <th className="col-date">Expiration</th>
+                  <th className="col-status">Attention</th>
+                  <th className="col-date">Created</th>
+                  <th className="col-mid">Created By</th>
+                  <th className="col-narrow">File</th>
+                  <th className="action-head col-actions">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -212,8 +221,8 @@ export default function CredentialsCenter() {
                   <tr><td colSpan="7" className="table-empty">No credentials in this category yet.</td></tr>
                 ) : rows.map(row => (
                   <tr key={row.id}>
-                    <td>
-                      <span className="cell-strong">{row.title}</span>
+                    <td data-label="Credential">
+                      <span className="cell-strong cell-clip" title={row.title}>{row.title}</span>
                       <div className="muted" style={{ fontSize: 9, marginTop: 4 }}>
                         {row.type}
                         {row.required ? ' · Required' : ''}
@@ -221,19 +230,43 @@ export default function CredentialsCenter() {
                         {row.reportingRequired ? ' · Reporting' : ''}
                       </div>
                     </td>
-                    <td>{fmt(row.expiresAt)}</td>
-                    <td><StatusBadge value={row.attention || row.status} /></td>
-                    <td>{fmt(row.createdAt)}</td>
-                    <td>{row.createdBy?.name || '—'}</td>
-                    <td>{row.storageKey ? row.originalName || 'Attached' : '—'}</td>
-                    <td>
-                      <div className="row-actions">
-                        {row.storageKey && <button className="small-action" onClick={() => download(row)}><Download size={12} /> Download</button>}
-                        <label className="small-action upload-action"><Upload size={12} /> Upload<input hidden type="file" accept={category === 'other' || row.category === 'other' || category === 'agreements' || row.category === 'agreements' ? '.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png' : '.pdf,.jpg,.jpeg,.png,.doc,.docx,.xlsx'} onChange={e => upload(row, e.target.files?.[0])} /></label>
-                        <button className="small-action" onClick={() => { setEditing(row); setModal(true); }}>Edit</button>
-                        <button className="small-action" onClick={() => toggleIgnore(row)}>{row.ignored ? 'Unignore' : 'Ignore'}</button>
-                        <button className="small-action danger-text" onClick={() => remove(row)}><Trash2 size={12} /></button>
-                      </div>
+                    <td className="col-date" data-label="Expiration">{fmt(row.expiresAt)}</td>
+                    <td className="col-status" data-label="Attention"><StatusBadge value={row.attention || row.status} variant="pill" /></td>
+                    <td className="col-date" data-label="Created">{fmt(row.createdAt)}</td>
+                    <td className="col-mid" data-label="Created By">
+                      <span className="cell-clip" title={row.createdBy?.name || '—'}>{row.createdBy?.name || '—'}</span>
+                    </td>
+                    <td className="col-narrow" data-label="File">
+                      <span className="cell-clip" title={row.storageKey ? row.originalName || 'Attached' : '—'}>
+                        {row.storageKey ? row.originalName || 'Attached' : '—'}
+                      </span>
+                    </td>
+                    <td className="col-actions" data-label="Actions">
+                      <RowActions>
+                        {row.storageKey && (
+                          <IconButton icon={Download} label="Download" tone="download" onClick={() => download(row)} />
+                        )}
+                        <IconButton as="label" icon={Upload} label="Upload" tone="upload" className="upload-action">
+                          <input
+                            hidden
+                            type="file"
+                            accept={category === 'other' || row.category === 'other' || category === 'agreements' || row.category === 'agreements' || category === 'irs' || row.category === 'irs' ? '.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png' : '.pdf,.jpg,.jpeg,.png,.doc,.docx,.xlsx'}
+                            onChange={e => upload(row, e.target.files?.[0])}
+                          />
+                        </IconButton>
+                        <IconButton icon={Pencil} label="Edit" tone="edit" onClick={() => { setEditing(row); setModal(true); }} />
+                        <IconButton icon={Trash2} label="Delete" tone="delete" onClick={() => remove(row)} />
+                        <MoreActions
+                          items={[
+                            {
+                              icon: row.ignored ? Eye : Ban,
+                              label: row.ignored ? 'Unignore' : 'Ignore',
+                              tone: row.ignored ? 'approve' : 'deactivate',
+                              onClick: () => toggleIgnore(row)
+                            }
+                          ]}
+                        />
+                      </RowActions>
                     </td>
                   </tr>
                 ))}

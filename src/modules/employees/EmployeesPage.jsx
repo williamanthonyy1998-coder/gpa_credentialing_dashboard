@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Clock, Plus, ShieldCheck, X } from 'lucide-react';
+import { Check, Clock, Pencil, Plus, Search, ShieldCheck, X } from 'lucide-react';
 import api from '../../api/client';
 import PageHeader from '../../components/common/PageHeader';
 import StatusBadge from '../../components/common/StatusBadge';
+import IconButton, { RowActions } from '../../components/common/IconButton';
 import { fmt } from '../../utils/format';
 
 const MANAGER_ROLES = ['ADMIN', 'CREDENTIALING_MANAGER'];
@@ -119,7 +120,7 @@ function LeaveAttendancePanel({ user, isManager, activeTab }) {
         </div>
         <div style={{ padding: '0 18px 18px' }}>
           {balances.length > 0 && (
-            <div className="metric-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', marginBottom: 14 }}>
+            <div className="metric-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(140px, 100%), 1fr))', marginBottom: 14 }}>
               {balances.map((b) => (
                 <div key={b.id} className="metric-card">
                   <span>{b.leaveType?.name || 'Leave'}</span>
@@ -156,26 +157,46 @@ function LeaveAttendancePanel({ user, isManager, activeTab }) {
             </p>
           </form>
         </div>
-        <div className="table-scroll">
+        <div className="table-scroll table-cards">
           <table>
             <thead>
               <tr>
-                <th>Employee</th><th>Type</th><th>Dates</th><th>Status</th><th>Actions</th>
+                <th>Employee</th>
+                <th className="col-mid">Type</th>
+                <th className="col-mid">Dates</th>
+                <th className="col-status">Status</th>
+                <th className="col-actions action-head">Actions</th>
               </tr>
             </thead>
             <tbody>
               {leaveRows.map(r => (
                 <tr key={r.id}>
-                  <td><b>{r.user?.name}</b><br /><small>{r.user?.department}</small></td>
-                  <td>{r.leaveType?.name}</td>
-                  <td>{fmt(r.startDate)} → {fmt(r.endDate)}</td>
-                  <td><StatusBadge value={r.status} /></td>
-                  <td>
+                  <td data-label="Employee">
+                    <span className="cell-clip cell-strong" title={r.user?.name || '—'}>{r.user?.name}</span>
+                    {r.user?.department ? <br /> : null}
+                    {r.user?.department ? <small className="muted">{r.user.department}</small> : null}
+                  </td>
+                  <td className="col-mid" data-label="Type"><span className="cell-clip" title={r.leaveType?.name || '—'}>{r.leaveType?.name}</span></td>
+                  <td className="col-mid" data-label="Dates">{fmt(r.startDate)} → {fmt(r.endDate)}</td>
+                  <td className="col-status" data-label="Status"><StatusBadge value={r.status} /></td>
+                  <td className="col-actions" data-label="Actions">
                     {isManager && r.status === 'PENDING' ? (
-                      <span style={{ display: 'inline-flex', gap: 6 }}>
-                        <button type="button" className="small-action" disabled={!!leaveBusy} onClick={() => decideLeave(r.id, 'APPROVED')}>Approve</button>
-                        <button type="button" className="small-action" disabled={!!leaveBusy} onClick={() => decideLeave(r.id, 'REJECTED')}>Reject</button>
-                      </span>
+                      <RowActions>
+                        <IconButton
+                          icon={Check}
+                          label="Approve"
+                          tone="approve"
+                          disabled={!!leaveBusy}
+                          onClick={() => decideLeave(r.id, 'APPROVED')}
+                        />
+                        <IconButton
+                          icon={X}
+                          label="Reject"
+                          tone="reject"
+                          disabled={!!leaveBusy}
+                          onClick={() => decideLeave(r.id, 'REJECTED')}
+                        />
+                      </RowActions>
                     ) : '—'}
                   </td>
                 </tr>
@@ -203,21 +224,27 @@ function LeaveAttendancePanel({ user, isManager, activeTab }) {
             </button>
           </div>
         </div>
-        <div className="table-scroll">
+        <div className="table-scroll table-cards">
           <table>
             <thead>
               <tr>
-                <th>Date</th><th>Employee</th><th>Check in</th><th>Check out</th><th>Worked (min)</th>
+                <th className="col-date">Date</th>
+                <th>Employee</th>
+                <th className="col-mid">Check in</th>
+                <th className="col-mid">Check out</th>
+                <th className="col-num">Worked</th>
               </tr>
             </thead>
             <tbody>
               {attendance.map(r => (
                 <tr key={r.id}>
-                  <td>{fmt(r.workDate)}</td>
-                  <td><b>{r.user?.name || user.name}</b></td>
-                  <td>{r.checkInAt ? new Date(r.checkInAt).toLocaleTimeString() : '—'}</td>
-                  <td>{r.checkOutAt ? new Date(r.checkOutAt).toLocaleTimeString() : '—'}</td>
-                  <td>{r.workedMinutes ?? '—'}</td>
+                  <td className="col-date" data-label="Date">{fmt(r.workDate)}</td>
+                  <td data-label="Employee">
+                    <span className="cell-clip cell-strong" title={r.user?.name || user.name}>{r.user?.name || user.name}</span>
+                  </td>
+                  <td className="col-mid" data-label="Check in">{r.checkInAt ? new Date(r.checkInAt).toLocaleTimeString() : '—'}</td>
+                  <td className="col-mid" data-label="Check out">{r.checkOutAt ? new Date(r.checkOutAt).toLocaleTimeString() : '—'}</td>
+                  <td className="col-num" data-label="Worked (min)">{r.workedMinutes ?? '—'}</td>
                 </tr>
               ))}
               {!attendance.length && <tr><td colSpan="5" className="table-empty">No attendance records yet.</td></tr>}
@@ -243,6 +270,16 @@ export default function EmployeesPage({ organizationId }) {
   const [error, setError] = useState('');
   const [created, setCreated] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [query, setQuery] = useState('');
+  const filteredRows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter(r => (
+      `${r.name || ''} ${r.email || ''} ${r.employeeCode || ''} ${r.department || ''} ${r.jobTitle || ''} ${r.role || ''}`
+        .toLowerCase()
+        .includes(q)
+    ));
+  }, [rows, query]);
 
   function setTab(next) {
     const p = new URLSearchParams(searchParams);
@@ -314,8 +351,8 @@ export default function EmployeesPage({ organizationId }) {
         back={organizationId
           ? { label: 'Back to Organization', fallbackHref: `/organizations/${organizationId}/overview`, autoLabel: true }
           : { label: 'Back', fallbackHref: null, autoLabel: true, hideIfNoTarget: true, listKey: 'employees' }}
-        actions={tab === 'directory' ? (
-          <button type="button" className="primary" onClick={() => { setEditing(null); setModal(true); }}><Plus size={17} /> Add Employee</button>
+        actions={tab === 'directory' && isManager ? (
+          <button type="button" className="primary" onClick={() => { setEditing(null); setCreated(null); setModal(true); }}><Plus size={17} /> Add Employee</button>
         ) : null}
       />
 
@@ -347,28 +384,73 @@ export default function EmployeesPage({ organizationId }) {
 
       {tab === 'directory' && (
         <section className="panel table-panel">
-          <div className="table-scroll">
+          <div className="table-toolbar">
+            <div className="search-box">
+              <Search size={16} aria-hidden="true" />
+              <input
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Search employees by name, email, ID, or role"
+                aria-label="Search employees"
+              />
+            </div>
+            <span className="record-count">{filteredRows.length} of {rows.length}</span>
+          </div>
+          <div className="table-scroll table-cards">
             <table>
               <thead>
                 <tr>
-                  <th>Employee</th><th>Employee ID</th><th>Department</th><th>Job Title</th>
-                  <th>Role</th><th>Manager</th><th>Status</th><th>Actions</th>
+                  <th>Employee</th>
+                  <th className="col-narrow">ID</th>
+                  <th className="col-mid">Department</th>
+                  <th>Job Title</th>
+                  <th className="col-mid">Role</th>
+                  <th className="col-mid">Manager</th>
+                  <th className="col-status">Status</th>
+                  <th className="col-actions action-head">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map(r => (
+                {filteredRows.map(r => {
+                  const managerName = r.managerId ? (rows.find(x => x.id === r.managerId)?.name || '—') : '—';
+                  const role = r.role?.replaceAll('_', ' ') || '—';
+                  return (
                   <tr key={r.id}>
-                    <td><b>{r.name}</b><br /><small>{r.email}</small></td>
-                    <td>{r.employeeCode || '—'}</td>
-                    <td>{r.department || '—'}</td>
-                    <td>{r.jobTitle || '—'}</td>
-                    <td>{r.role?.replaceAll('_', ' ')}</td>
-                    <td>{r.managerId ? (rows.find(x => x.id === r.managerId)?.name || '—') : '—'}</td>
-                    <td><StatusBadge value={r.active ? 'ACTIVE' : 'INACTIVE'} /></td>
-                    <td><button type="button" className="small-action" onClick={() => { setEditing(r); setModal(true); }}>Edit</button></td>
+                    <td data-label="Employee">
+                      <span className="cell-clip cell-strong" title={r.name}>{r.name}</span>
+                      {r.email ? <br /> : null}
+                      {r.email ? <small className="muted cell-clip" title={r.email}>{r.email}</small> : null}
+                    </td>
+                    <td className="col-narrow" data-label="Employee ID"><span className="cell-clip" title={r.employeeCode || '—'}>{r.employeeCode || '—'}</span></td>
+                    <td className="col-mid" data-label="Department"><span className="cell-clip" title={r.department || '—'}>{r.department || '—'}</span></td>
+                    <td data-label="Job Title"><span className="cell-clip" title={r.jobTitle || '—'}>{r.jobTitle || '—'}</span></td>
+                    <td className="col-mid" data-label="Role"><span className="cell-clip" title={role}>{role}</span></td>
+                    <td className="col-mid" data-label="Manager"><span className="cell-clip" title={managerName}>{managerName}</span></td>
+                    <td className="col-status" data-label="Status"><StatusBadge value={r.active ? 'ACTIVE' : 'INACTIVE'} /></td>
+                    <td className="col-actions" data-label="Actions">
+                      {isManager ? (
+                        <RowActions>
+                          <IconButton
+                            icon={Pencil}
+                            label="Edit"
+                            tone="edit"
+                            onClick={() => { setEditing(r); setCreated(null); setModal(true); }}
+                          />
+                        </RowActions>
+                      ) : (
+                        <span className="muted">—</span>
+                      )}
+                    </td>
                   </tr>
-                ))}
-                {!rows.length && <tr><td colSpan="8" className="table-empty">No employees yet. Add your first employee.</td></tr>}
+                  );
+                })}
+                {!filteredRows.length && (
+                  <tr>
+                    <td colSpan="8" className="table-empty">
+                      {rows.length ? 'No employees match your search.' : 'No employees yet. Add your first employee.'}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -376,14 +458,14 @@ export default function EmployeesPage({ organizationId }) {
       )}
 
       {modal && (
-        <div className="modal-backdrop">
+        <div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && setModal(false)}>
           <form className="record-modal" onSubmit={save}>
             <div className="modal-heading">
               <div>
                 <span className="eyebrow">TEAM ACCOUNT</span>
                 <h2>{editing ? 'Edit Employee' : 'Add Employee'}</h2>
               </div>
-              <button type="button" className="icon-button" onClick={() => setModal(false)}><X /></button>
+              <button type="button" className="icon-button" onClick={() => setModal(false)} aria-label="Close"><X /></button>
             </div>
             <div className="form-grid">
               <label>Full Name<input name="name" required defaultValue={editing?.name || ''} /></label>

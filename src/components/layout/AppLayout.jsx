@@ -13,7 +13,7 @@ function ShellChrome({ children }) {
   const [mobile, setMobile] = useState(false);
   const location = useLocation();
   const nav = useNavigate();
-  const { hideTopbar } = useShell();
+  const { hideTopbar, secondarySidebarCollapsed } = useShell();
   const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('credentialing_user') || '{}'));
 
   useEffect(() => {
@@ -31,16 +31,24 @@ function ShellChrome({ children }) {
   const crumbLabel = crumbs.length === 0 ? 'Dashboard' : crumbs[0].replace(/-/g, ' ');
 
   return (
-    <div className="app-shell unified-shell">
+    <div className={`app-shell unified-shell${secondarySidebarCollapsed ? ' secondary-sidebar-collapsed' : ''}`}>
       <IconRail />
 
-      <div className={`shell-module-wrap ${mobile ? 'show' : ''}`}>
+      <div className={`shell-module-wrap${mobile ? ' show' : ''}`}>
         <button type="button" className="icon-button close-nav shell-close-ctx" onClick={() => setMobile(false)} aria-label="Close menu">
           <X size={18} />
         </button>
         <AppSidebar />
       </div>
-      {mobile && <div className="mobile-scrim" onClick={() => setMobile(false)} />}
+      {mobile && (
+        <div
+          className="mobile-scrim"
+          onClick={() => setMobile(false)}
+          onKeyDown={e => e.key === 'Escape' && setMobile(false)}
+          role="presentation"
+          aria-hidden="true"
+        />
+      )}
 
       <div className="shell-main">
         {!hideTopbar && (
@@ -72,7 +80,7 @@ function ShellChrome({ children }) {
             <Menu size={20} />
           </button>
         )}
-        <div className="shell-content">{children}</div>
+        <div className="shell-content scroll-region">{children}</div>
       </div>
     </div>
   );

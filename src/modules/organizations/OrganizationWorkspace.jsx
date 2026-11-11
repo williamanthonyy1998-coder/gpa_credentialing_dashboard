@@ -12,6 +12,7 @@ import AppBreadcrumbs from '../../components/common/AppBreadcrumbs';
 import RecordPage from '../records/RecordPage';
 import EmployeesPage from '../employees/EmployeesPage';
 import AuditPage from '../audit/AuditPage';
+import EnrollmentsPage from '../enrollments/EnrollmentsPage';
 import { LIST_KEYS } from '../../navigation/listReturn';
 
 const MANAGEMENT_CARDS = [
@@ -304,7 +305,8 @@ export default function OrganizationWorkspace() {
               {section === 'profile' && <OrganizationProfile org={org} />}
               {section === 'audit' && <AuditPage organizationId={id} />}
               {section === 'employees' && <EmployeesPage organizationId={id} />}
-              {section !== 'overview' && section !== 'profile' && section !== 'audit' && section !== 'employees' && (
+              {section === 'enrollments' && <EnrollmentsPage organizationId={id} />}
+              {section !== 'overview' && section !== 'profile' && section !== 'audit' && section !== 'employees' && section !== 'enrollments' && (
                 <RecordPage
                   type={sectionResource[section] || 'providers'}
                   scopedId={id}
