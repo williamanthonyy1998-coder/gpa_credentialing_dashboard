@@ -231,6 +231,21 @@ a:focus-visible,
 .crumb { font-size: var(--text-sm); color: var(--muted); }
 .crumb span { padding: 0 9px; color: var(--color-text-soft); }
 .crumb b { font-weight: 600; color: var(--color-text); }
+.tenant-switcher {
+  display: inline-flex; align-items: center; gap: 8px; margin-left: 12px; min-width: 0;
+}
+.tenant-switcher select {
+  max-width: 220px; height: 34px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--white); color: var(--color-text); font-size: var(--text-sm); padding: 0 10px;
+}
+.tenant-switcher-label {
+  font-size: var(--text-sm); font-weight: 600; color: var(--color-text);
+  max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
 .topbar-right {
   display: flex; align-items: center; gap: 12px;
   min-width: 0; flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end;
@@ -2580,4 +2595,49 @@ tbody tr:last-child td { border-bottom: 0; }
   .notify-mark-all { font-size: 10px; }
   .shell-topbar .global-search-wrap { flex: 1 1 100px; max-width: none; }
   .page { padding: 16px 12px 24px; }
+}
+
+/* Phase 1A reference data hub */
+.section-title {
+  margin: 22px 0 12px;
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--color-text);
+}
+.ref-data-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+.ref-data-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  text-align: left;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease), box-shadow var(--duration-fast) var(--ease);
+}
+.ref-data-card:hover {
+  border-color: var(--color-supporting-blue);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+}
+.ref-data-card b { display: block; font-size: var(--text-sm); }
+.ref-data-card small { display: block; margin-top: 4px; color: var(--muted); font-size: var(--text-xs); }
+.search-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: min(280px, 100%);
+}
+.search-field input { flex: 1; min-width: 0; }
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
 }

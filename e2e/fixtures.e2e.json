@@ -1,0 +1,49 @@
+{
+  "password": "E2eTest-Password-ChangeMe-2026!",
+  "domain": "e2e.credentialing.test",
+  "users": {
+    "gpaAdmin": {
+      "email": "gpa.admin@e2e.credentialing.test",
+      "id": "cmwdsz9u0000057c0j55m8cxy"
+    },
+    "clientA": {
+      "email": "client.a.admin@e2e.credentialing.test",
+      "id": "cmwdsz9vv000157c0e7nh9od5"
+    },
+    "clientB": {
+      "email": "client.b.admin@e2e.credentialing.test",
+      "id": "cmwdsz9xn000257c0a9mcny0k"
+    },
+    "providerA": {
+      "email": "provider.a@e2e.credentialing.test",
+      "id": "cmwdsz9zg000357c0v6e5nmpm"
+    },
+    "providerB": {
+      "email": "provider.b@e2e.credentialing.test",
+      "id": "cmwdsza18000457c0p15qv6ys"
+    }
+  },
+  "tenants": {
+    "a": {
+      "id": "cmwdsza1a000557c0tcznfgaf",
+      "slug": "e2e-tenant-a",
+      "name": "E2E Tenant A"
+    },
+    "b": {
+      "id": "cmwdsza1c000657c061taloto",
+      "slug": "e2e-tenant-b",
+      "name": "E2E Tenant B"
+    }
+  },
+  "organizations": {
+    "a": "e2e-org-a-fixed",
+    "b": "cmwdsza1o000e57c0akd8vw6q"
+  },
+  "practiceA": "cmwdsza1r000g57c02fb2sw5n",
+  "intakes": {
+    "a": "cmwdsza1u000i57c078trlb59",
+    "b": "cmwdsza1y000k57c00pwu2rj5",
+    "refA": "E2E-INTAKE-A",
+    "refB": "E2E-INTAKE-B"
+  }
+}

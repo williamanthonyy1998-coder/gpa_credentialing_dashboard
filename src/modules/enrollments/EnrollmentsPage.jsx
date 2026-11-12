@@ -10,6 +10,10 @@ import { fmt } from '../../utils/format';
 import { currentListPath, LIST_KEYS, saveListReturn } from '../../navigation/listReturn';
 import { ENROLLMENT_STATUS_ORDER, enrollmentStatusTone, labelForEnrollmentStatus } from './enrollmentLabels';
 import EnrollmentActivityDrawer from './EnrollmentActivityDrawer';
+import EnrollmentPacketPanel from './EnrollmentPacketPanel';
+import EnrollmentSubmissionPanel from './EnrollmentSubmissionPanel';
+import IntegrationPanel from '../integrations/IntegrationPanel';
+import EnrollmentRevalidationPanel from './EnrollmentRevalidationPanel';
 
 const BULK_ASSIGN_ROLES = new Set(['ADMIN', 'CREDENTIALING_MANAGER', 'ENROLLMENT_SPECIALIST']);
 const CREATE_ROLES = new Set([
@@ -20,7 +24,9 @@ const CREATE_ROLES = new Set([
   'APPROVER'
 ]);
 const EDIT_ROLES = CREATE_ROLES;
-const FINAL_STATUSES = new Set(['APPROVED', 'DENIED', 'WITHDRAWN']);
+const PACKET_WAIVE_ROLES = new Set(['ADMIN', 'CREDENTIALING_MANAGER', 'APPROVER']);
+const PACKET_OVERRIDE_ROLES = new Set(['ADMIN', 'CREDENTIALING_MANAGER']);
+const FINAL_STATUSES = new Set(['DENIED', 'WITHDRAWN', 'TERMINATED', 'CLOSED']);
 const PAGE_SIZE = 25;
 
 function dateInputValue(value) {
@@ -338,7 +344,7 @@ export default function EnrollmentsPage({ organizationId: scopedOrganizationId }
 
   const createPlanOptions = useMemo(() => {
     const plans = createForm.payerId
-      ? refs.plans.filter(p => p.payerId === createForm.payerId)
+      ? refs.plans.filter(p => p.payerId === createForm.payerId && (!p.status || p.status === 'ACTIVE'))
       : [];
     const qPlan = createForm.planSearch.trim().toLowerCase();
     if (!qPlan) return plans;
@@ -346,9 +352,10 @@ export default function EnrollmentsPage({ organizationId: scopedOrganizationId }
   }, [refs.plans, createForm.payerId, createForm.planSearch]);
 
   const createPayerOptions = useMemo(() => {
+    const active = refs.payers.filter(p => !p.status || p.status === 'ACTIVE');
     const qPayer = createForm.payerSearch.trim().toLowerCase();
-    if (!qPayer) return refs.payers;
-    return refs.payers.filter(p => String(p.name || '').toLowerCase().includes(qPayer));
+    if (!qPayer) return active;
+    return active.filter(p => String(p.name || '').toLowerCase().includes(qPayer));
   }, [refs.payers, createForm.payerSearch]);
 
   const createFacilityOptions = useMemo(() => {
@@ -403,8 +410,12 @@ export default function EnrollmentsPage({ organizationId: scopedOrganizationId }
 
   const editPlanOptions = useMemo(() => {
     if (!editForm?.payerId) return [];
-    return refs.plans.filter(p => p.payerId === editForm.payerId);
-  }, [refs.plans, editForm?.payerId]);
+    return refs.plans.filter(p => {
+      if (p.payerId !== editForm.payerId) return false;
+      if (!p.status || p.status === 'ACTIVE') return true;
+      return p.id === editForm.payerPlanId;
+    });
+  }, [refs.plans, editForm?.payerId, editForm?.payerPlanId]);
 
   const editFacilityOptions = useMemo(
     () => (editForm?.practiceId
@@ -558,7 +569,6 @@ export default function EnrollmentsPage({ organizationId: scopedOrganizationId }
       notes: editForm.notes || '',
       subject: editForm.subject || null,
       assignedTo: editForm.assignedTo || null,
-      submittedAt: editForm.submittedAt || null,
       lastFollowUpAt: editForm.lastFollowUpAt || null,
       nextFollowUpAt: editForm.nextFollowUpAt || null,
       payerId: editForm.payerId || null,
@@ -567,14 +577,51 @@ export default function EnrollmentsPage({ organizationId: scopedOrganizationId }
       facilityId: editForm.facilityId,
       providerId: editForm.providerId || null
     };
-    if (editForm.status && editForm.status !== detail.status) body.status = editForm.status;
     try {
+      let latest = detail;
       const r = await api.patch(`/enrollments/${detail.id}`, body);
-      setDetail(d => ({ ...d, ...r.data }));
-      setEditForm(detailToEditForm(r.data));
+      latest = r.data;
+      // Lifecycle transitions use dedicated endpoints — not unrestricted status PATCH.
+      if (editForm.status && editForm.status !== detail.status) {
+        const map = {
+          PREPARING: 'prepare',
+          READY_TO_SUBMIT: 'ready',
+          SUBMITTED: 'submit',
+          ACKNOWLEDGED: 'acknowledge',
+          PAYER_REVIEW: 'payer-review',
+          ADDITIONAL_INFORMATION_NEEDED: 'request-information',
+          APPROVED: 'approve',
+          EFFECTIVE: 'effective',
+          DENIED: 'reject',
+          TERMINATED: 'terminate'
+        };
+        const action = map[editForm.status];
+        if (!action) throw new Error(`Unsupported transition to ${editForm.status}`);
+        const payload = {};
+        if (action === 'submit') {
+          payload.submittedAt = editForm.submittedAt || new Date().toISOString();
+          payload.notes = 'Submission recorded from enrollment detail';
+        }
+        if (action === 'request-information') {
+          payload.reason = editForm.notes || 'Additional information requested';
+        }
+        if (action === 'reject' || action === 'terminate') {
+          payload.reason = editForm.notes || `${editForm.status} recorded`;
+        }
+        if (action === 'effective') {
+          payload.effectiveAt = editForm.submittedAt || new Date().toISOString().slice(0, 10);
+        }
+        if (action === 'approve') {
+          payload.notes = editForm.notes || 'Approval recorded';
+        }
+        const tr = await api.post(`/enrollments/${detail.id}/${action}`, payload);
+        latest = tr.data;
+      }
+      setDetail(d => ({ ...d, ...latest }));
+      setEditForm(detailToEditForm(latest));
       await load();
     } catch (err) {
-      setEditError(err.response?.data?.error || 'Could not save enrollment.');
+      setEditError(err.response?.data?.error || err.message || 'Could not save enrollment.');
     } finally {
       setSaving(false);
     }
@@ -1278,7 +1325,7 @@ export default function EnrollmentsPage({ organizationId: scopedOrganizationId }
                     />
                   </label>
                   <label>
-                    Status
+                    Next lifecycle status
                     <select
                       value={editForm.status}
                       onChange={e => updateEdit({ status: e.target.value })}
@@ -1288,9 +1335,13 @@ export default function EnrollmentsPage({ organizationId: scopedOrganizationId }
                         <option key={s} value={s}>{labelForEnrollmentStatus(s)}</option>
                       ))}
                     </select>
+                    <span className="muted" style={{ fontSize: 12 }}>
+                      Transitions use lifecycle APIs. Recording submission is not automated payer portal submit.
+                      Attention: {detail.attention || '—'}
+                    </span>
                   </label>
                   <label>
-                    Submitted Date
+                    Submitted Date (for submit action)
                     <input
                       type="date"
                       value={editForm.submittedAt}
@@ -1340,6 +1391,26 @@ export default function EnrollmentsPage({ organizationId: scopedOrganizationId }
                     </ul>
                   </div>
                 )}
+                <EnrollmentPacketPanel
+                  enrollmentId={detail.id}
+                  canReview={canEdit}
+                  canWaive={PACKET_WAIVE_ROLES.has(user.role)}
+                />
+                <EnrollmentSubmissionPanel
+                  enrollmentId={detail.id}
+                  canManage={canEdit}
+                  canExceptionalOverride={PACKET_OVERRIDE_ROLES.has(user.role)}
+                />
+                <IntegrationPanel
+                  enrollmentId={detail.id}
+                  providerId={detail.providerId || null}
+                  canConfigure={PACKET_OVERRIDE_ROLES.has(user.role)}
+                  canManageAuth={canEdit}
+                />
+                <EnrollmentRevalidationPanel
+                  enrollmentId={detail.id}
+                  canManage={canEdit}
+                />
                 <div className="modal-footer">
                   <span className="muted">Application # is read-only. Highlighting does not change status.</span>
                   <button type="button" className="secondary" onClick={() => setDetail(null)}>Close</button>

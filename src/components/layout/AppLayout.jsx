@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Menu, Settings, X } from 'lucide-react';
 import IconRail from './IconRail';
@@ -8,6 +8,7 @@ import GlobalSearch from '../common/GlobalSearch';
 import { ShellProvider, useShell } from './ShellContext';
 import { NavigationHistoryProvider } from '../../navigation/NavigationHistoryContext';
 import { roleLabel } from '../../utils/format';
+import { setActiveTenantId } from '../../api/client';
 
 function ShellChrome({ children }) {
   const [mobile, setMobile] = useState(false);
@@ -15,6 +16,9 @@ function ShellChrome({ children }) {
   const nav = useNavigate();
   const { hideTopbar, secondarySidebarCollapsed } = useShell();
   const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('credentialing_user') || '{}'));
+  const [tenants, setTenants] = useState(() => JSON.parse(localStorage.getItem('credentialing_tenants') || '[]'));
+  const [tenantId, setTenantId] = useState(() => localStorage.getItem('credentialing_tenant_id') || '');
+  const [tenantEpoch, setTenantEpoch] = useState(0);
 
   useEffect(() => {
     const fn = () => nav('/login');
@@ -23,9 +27,34 @@ function ShellChrome({ children }) {
   }, [nav]);
 
   useEffect(() => {
+    const onTenant = () => {
+      setTenantId(localStorage.getItem('credentialing_tenant_id') || '');
+      setTenants(JSON.parse(localStorage.getItem('credentialing_tenants') || '[]'));
+      setTenantEpoch(v => v + 1);
+    };
+    window.addEventListener('credentialing:tenant-changed', onTenant);
+    return () => window.removeEventListener('credentialing:tenant-changed', onTenant);
+  }, []);
+
+  useEffect(() => {
     setUser(JSON.parse(localStorage.getItem('credentialing_user') || '{}'));
+    setTenants(JSON.parse(localStorage.getItem('credentialing_tenants') || '[]'));
+    setTenantId(localStorage.getItem('credentialing_tenant_id') || '');
     setMobile(false);
   }, [location.pathname]);
+
+  const usableTenants = useMemo(() => (tenants || []).filter(t => t.usable), [tenants]);
+  const activeTenant = usableTenants.find(t => t.tenantId === tenantId) || usableTenants[0];
+
+  function onTenantChange(e) {
+    const next = e.target.value;
+    setActiveTenantId(next || null);
+    setTenantId(next || '');
+    // Force remount of tenant-scoped views so stale responses cannot paint into the new tenant.
+    setTenantEpoch(v => v + 1);
+    const role = JSON.parse(localStorage.getItem('credentialing_user') || '{}')?.role;
+    nav(role === 'CLIENT_USER' ? '/portal' : '/');
+  }
 
   const crumbs = location.pathname.split('/').filter(Boolean);
   const crumbLabel = crumbs.length === 0 ? 'Dashboard' : crumbs[0].replace(/-/g, ' ');
@@ -59,6 +88,21 @@ function ShellChrome({ children }) {
             <div className="crumb">
               eClinicAssist <span>/</span> <b style={{ textTransform: 'capitalize' }}>{crumbLabel}</b>
             </div>
+            {usableTenants.length > 0 && (
+              <label className="tenant-switcher" title="Active client account">
+                <span className="sr-only">Active tenant</span>
+                {usableTenants.length === 1 ? (
+                  <span className="tenant-switcher-label">{activeTenant?.tenant?.name || 'Tenant'}</span>
+                ) : (
+                  <select value={tenantId} onChange={onTenantChange} aria-label="Select tenant">
+                    {!tenantId && <option value="">Select tenant…</option>}
+                    {usableTenants.map(t => (
+                      <option key={t.tenantId} value={t.tenantId}>{t.tenant?.name || t.tenantId}</option>
+                    ))}
+                  </select>
+                )}
+              </label>
+            )}
             <GlobalSearch />
             <div className="topbar-right">
               <button type="button" className="icon-button" title="Settings" aria-label="Settings" onClick={() => nav('/employees')}>
@@ -80,7 +124,9 @@ function ShellChrome({ children }) {
             <Menu size={20} />
           </button>
         )}
-        <div className="shell-content scroll-region">{children}</div>
+        <div className="shell-content scroll-region" key={`tenant-${tenantEpoch}-${tenantId}`}>
+          {children}
+        </div>
       </div>
     </div>
   );

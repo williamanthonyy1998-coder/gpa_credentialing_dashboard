@@ -10,6 +10,7 @@ import { useShell } from './ShellContext';
 
 const WORKSPACE_LINKS = [
   { to: '/', label: 'Overview', icon: Gauge, end: true },
+  { to: '/clients', label: 'Client accounts', icon: Building2 },
   { to: '/organizations', label: 'Directory', icon: FolderOpen },
   { to: '/cases', label: 'Credentialing', icon: ClipboardCheck },
   { to: '/enrollments', label: 'Enrollments', icon: CreditCard },
@@ -19,12 +20,35 @@ const WORKSPACE_LINKS = [
   { to: '/audit', label: 'Activity & Audit', icon: Activity }
 ];
 
+const PORTAL_LINKS = [
+  { to: '/portal', label: 'Portal overview', icon: Gauge, end: true },
+  { to: '/portal/profile', label: 'Client profile', icon: Building2 },
+  { to: '/portal/users', label: 'Users & invitations', icon: Users },
+  { to: '/portal/organizations', label: 'Organizations', icon: Landmark },
+  { to: '/portal/provider-intakes', label: 'Provider intakes', icon: Inbox },
+  { to: '/organizations', label: 'Full directory', icon: FolderOpen },
+  { to: '/credentials', label: 'Credentials', icon: FileText },
+  { to: '/enrollments', label: 'Enrollments', icon: CreditCard }
+];
+
+const PROVIDER_PORTAL_LINKS = [
+  { to: '/provider-portal', label: 'Overview', icon: Gauge, end: true },
+  { to: '/provider-portal/intakes', label: 'My intakes', icon: Inbox }
+];
+
+const CLIENT_MGMT_LINKS = [
+  { to: '/clients', label: 'All clients', icon: Building2, end: true },
+  { to: '/organizations', label: 'Directory', icon: FolderOpen },
+  { to: '/audit', label: 'Audit Log', icon: Activity }
+];
+
 const DIRECTORY_LINKS = [
   { to: '/organizations', label: 'Organizations', icon: Building2 },
   { to: '/practices', label: 'Practices', icon: Landmark },
   { to: '/facilities', label: 'Facilities', icon: MapPin },
   { to: '/providers', label: 'Providers', icon: Stethoscope },
   { to: '/payers', label: 'Payers', icon: ShieldCheck },
+  { to: '/directories', label: 'Reference Data', icon: FolderOpen },
   { to: '/credentials', label: 'Credentials', icon: FileText },
   { to: '/documents', label: 'Documents', icon: FileText }
 ];
@@ -41,6 +65,8 @@ const ENROLLMENT_LINKS = [
   { to: '/enrollments', label: 'Applications', icon: CreditCard },
   { to: '/payers', label: 'Payers', icon: ShieldCheck },
   { to: '/plans', label: 'Payer Plans', icon: FileText },
+  { to: '/directories/payerContacts', label: 'Payer Contacts', icon: Users },
+  { to: '/directories/payerRequirements', label: 'Payer Requirements', icon: FileText },
   { to: '/providers', label: 'Providers', icon: Stethoscope },
   { to: '/practices', label: 'Practices', icon: Landmark },
   { to: '/tasks', label: 'Follow-ups', icon: CheckSquare }
@@ -49,6 +75,10 @@ const ENROLLMENT_LINKS = [
 const OPERATIONS_LINKS = [
   { to: '/intake', label: 'Intake', icon: Inbox },
   { to: '/employees', label: 'Employees', icon: Users },
+  { to: '/directories', label: 'Reference Data', icon: FolderOpen },
+  { to: '/directories/quality', label: 'Directory Quality', icon: Activity },
+  { to: '/credentialing-qa', label: 'Credentialing QA', icon: ShieldCheck },
+  { to: '/directories/billingEntities', label: 'Billing Entities', icon: Landmark },
   { to: '/tasks', label: 'Tasks', icon: CheckSquare },
   { to: '/audit', label: 'Audit Log', icon: Activity },
   { to: '/documents', label: 'Documents', icon: FileText }
@@ -125,13 +155,26 @@ function OrgWorkspaceNav({ orgId }) {
 
 function DefaultSidebarNav() {
   const path = useLocation().pathname;
+  const user = JSON.parse(localStorage.getItem('credentialing_user') || '{}');
   const orgMatch = path.match(/^\/organizations\/([^/]+)/);
 
+  if (user.role === 'EXTERNAL_PROVIDER' || path.startsWith('/provider-portal')) {
+    return <NavBlock caption="PROVIDER PORTAL" links={PROVIDER_PORTAL_LINKS} />;
+  }
+  if (user.role === 'CLIENT_USER' || path.startsWith('/portal')) {
+    return <NavBlock caption="CLIENT PORTAL" links={PORTAL_LINKS} />;
+  }
+  if (path.startsWith('/clients')) {
+    return <NavBlock caption="CLIENT MANAGEMENT" links={CLIENT_MGMT_LINKS} />;
+  }
   if (orgMatch?.[1] && orgMatch[1] !== 'new') {
     return <OrgWorkspaceNav orgId={orgMatch[1]} />;
   }
   if (path === '/' || path === '') {
-    return <NavBlock caption="WORKSPACE" links={WORKSPACE_LINKS} />;
+    const links = ['ADMIN', 'CREDENTIALING_MANAGER'].includes(user.role)
+      ? WORKSPACE_LINKS
+      : WORKSPACE_LINKS.filter((l) => l.to !== '/clients');
+    return <NavBlock caption="WORKSPACE" links={links} />;
   }
   if (
     path.startsWith('/organizations')
@@ -139,6 +182,7 @@ function DefaultSidebarNav() {
     || path.startsWith('/facilities')
     || path.startsWith('/providers')
     || path.startsWith('/payers')
+    || path.startsWith('/directories')
     || path.startsWith('/credentials')
     || path.startsWith('/documents')
     || path.startsWith('/licenses')

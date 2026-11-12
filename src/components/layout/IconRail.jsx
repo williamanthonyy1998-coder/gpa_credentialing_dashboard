@@ -1,16 +1,25 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Building2, Calendar, ClipboardList, FolderOpen, Gauge, Globe2, LogOut, Settings, Shield
+  Building2, Calendar, ClipboardList, FolderOpen, Gauge, Globe2, LogOut, Settings, Shield, Users
 } from 'lucide-react';
 
-const items = [
+import { clearAuthStorage } from '../../api/client';
+
+const GPA_ITEMS = [
   {
     to: '/',
     icon: Gauge,
     end: true,
     title: 'Dashboard',
     match: (p) => p === '/' || p === '' || p.startsWith('/intake')
+  },
+  {
+    to: '/clients',
+    icon: Users,
+    title: 'Clients',
+    match: (p) => p.startsWith('/clients'),
+    roles: ['ADMIN', 'CREDENTIALING_MANAGER']
   },
   {
     to: '/organizations',
@@ -34,20 +43,82 @@ const items = [
   { to: '/employees', icon: Settings, title: 'Settings / HR', match: (p) => p.startsWith('/employees') || p.startsWith('/audit') }
 ];
 
-function resolveActiveTo(path) {
+const CLIENT_ITEMS = [
+  {
+    to: '/portal',
+    icon: Gauge,
+    end: true,
+    title: 'Client portal',
+    match: (p) => p === '/portal' || p === '/portal/'
+  },
+  {
+    to: '/portal/organizations',
+    icon: FolderOpen,
+    title: 'Organizations',
+    match: (p) => p.startsWith('/portal/organizations') || p.startsWith('/organizations') || p.startsWith('/practices') || p.startsWith('/facilities')
+  },
+  {
+    to: '/portal/provider-intakes',
+    icon: ClipboardList,
+    title: 'Provider intakes',
+    match: (p) => p.startsWith('/portal/provider-intakes')
+  },
+  {
+    to: '/portal/users',
+    icon: Users,
+    title: 'Users',
+    match: (p) => p.startsWith('/portal/users')
+  },
+  {
+    to: '/portal/profile',
+    icon: Settings,
+    title: 'Profile',
+    match: (p) => p.startsWith('/portal/profile')
+  },
+  { to: '/credentials', icon: Building2, title: 'Credentials', match: (p) => p.startsWith('/credentials') },
+  { to: '/enrollments', icon: Calendar, title: 'Enrollments', match: (p) => p.startsWith('/enrollments') }
+];
+
+const PROVIDER_ITEMS = [
+  {
+    to: '/provider-portal',
+    icon: Gauge,
+    end: true,
+    title: 'Provider portal',
+    match: (p) => p === '/provider-portal' || p === '/provider-portal/'
+  },
+  {
+    to: '/provider-portal/intakes',
+    icon: ClipboardList,
+    title: 'My intakes',
+    match: (p) => p.startsWith('/provider-portal/intakes')
+  }
+];
+
+function resolveActiveTo(items, path) {
   const hit = items.find(item => item.match(path));
-  return hit?.to || '/';
+  return hit?.to || items[0]?.to || '/';
 }
 
 export default function IconRail() {
   const location = useLocation();
   const nav = useNavigate();
   const path = location.pathname;
-  const activeTo = resolveActiveTo(path);
+  const user = useMemo(() => JSON.parse(localStorage.getItem('credentialing_user') || '{}'), [path]);
+  const isClient = user.role === 'CLIENT_USER';
+  const isProvider = user.role === 'EXTERNAL_PROVIDER';
+  const items = useMemo(() => {
+    if (isProvider) return PROVIDER_ITEMS;
+    if (isClient) return CLIENT_ITEMS;
+    return GPA_ITEMS.filter((item) => {
+      if (!item.roles) return true;
+      return item.roles.includes(user.role);
+    });
+  }, [isClient, isProvider, user.role]);
+  const activeTo = resolveActiveTo(items, path);
 
   function logout() {
-    localStorage.removeItem('credentialing_token');
-    localStorage.removeItem('credentialing_user');
+    clearAuthStorage();
     nav('/login');
   }
 

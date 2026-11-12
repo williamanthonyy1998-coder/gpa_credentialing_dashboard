@@ -8,6 +8,7 @@ import DirectoryProfileShell from '../../components/layout/DirectoryProfileShell
 import InfoField from '../../components/common/InfoField';
 import MaskedField from '../../components/common/MaskedField';
 import ProgressBar from '../../components/common/ProgressBar';
+import { StateAbbrevSelect, BillingEntitySelect } from '../../components/directory';
 
 const STEPS = [
   { key: 'basic', label: 'Basic Information' },
@@ -383,6 +384,10 @@ export default function PracticeProfile() {
 
       {stepKey === 'banking' && (
         <>
+          <SectionHead title="BILLING ENTITY" onEdit={() => setEditModal('billingEntity')} />
+          <p className="muted" style={{ marginBottom: 12 }}>
+            Optionally link this practice to a tenant billing entity. Practices do not require their own billing entity.
+          </p>
           <SectionHead title="ACCOUNT HOLDER CREDENTIALS" onEdit={() => setEditModal('banking')} />
           <div className="info-grid">
             <InfoField label="NAME OF BANK" value={detail?.bankName} />
@@ -443,6 +448,15 @@ export default function PracticeProfile() {
             <BankingForm
               detail={detail}
               onSave={async (form) => { await saveSection(form); }}
+            />
+          )}
+          {editModal === 'billingEntity' && practiceId && (
+            <BillingEntityLinkForm
+              practiceId={practiceId}
+              onDone={async () => {
+                setEditModal(null);
+                await load();
+              }}
             />
           )}
           {(editModal === 'owner' || editModal?.type === 'owner') && (
@@ -549,12 +563,56 @@ function AddressForm({ addr, onSave }) {
       <label>ZIP<input value={form.zip} onChange={e => setForm({ ...form, zip: e.target.value })} /></label>
       <label>County<input value={form.county} onChange={e => setForm({ ...form, county: e.target.value })} /></label>
       <label>City<input value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} /></label>
-      <label>State<input value={form.state} onChange={e => setForm({ ...form, state: e.target.value })} /></label>
+      <label>State
+        <StateAbbrevSelect
+          value={form.state}
+          fallbackLabel={form.state}
+          onChange={(v) => setForm({ ...form, state: v || '' })}
+        />
+      </label>
       <label>Country<input value={form.country} onChange={e => setForm({ ...form, country: e.target.value })} /></label>
       <label>Phone<input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></label>
       <label>Fax<input value={form.fax} onChange={e => setForm({ ...form, fax: e.target.value })} /></label>
       <div className="modal-footer span-2" style={{ gridColumn: '1 / -1' }}>
         <button type="submit" className="primary">Save address</button>
+      </div>
+    </form>
+  );
+}
+
+function BillingEntityLinkForm({ practiceId, onDone }) {
+  const [billingEntityId, setBillingEntityId] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  async function submit(e) {
+    e.preventDefault();
+    if (!billingEntityId) return;
+    setSaving(true);
+    setError('');
+    try {
+      await api.post(`/directories/billingEntities/${billingEntityId}/practices`, { practiceId });
+      onDone?.();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Could not link billing entity');
+    } finally {
+      setSaving(false);
+    }
+  }
+  return (
+    <form className="form-grid" onSubmit={submit}>
+      {error ? <div className="error banner span-2">{error}</div> : null}
+      <label className="span-2">Billing entity
+        <BillingEntitySelect
+          required
+          allowEmpty={false}
+          value={billingEntityId}
+          onChange={(v) => setBillingEntityId(v || '')}
+        />
+      </label>
+      <div className="modal-footer span-2" style={{ gridColumn: '1 / -1' }}>
+        <button type="submit" className="primary" disabled={saving || !billingEntityId}>
+          {saving ? 'Linking…' : 'Link billing entity'}
+        </button>
       </div>
     </form>
   );
@@ -617,7 +675,13 @@ function OwnerForm({ owner, onSave }) {
       <label>ZIP<input value={form.zip} onChange={e => setForm({ ...form, zip: e.target.value })} /></label>
       <label>County<input value={form.county} onChange={e => setForm({ ...form, county: e.target.value })} /></label>
       <label>City<input value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} /></label>
-      <label>State<input value={form.state} onChange={e => setForm({ ...form, state: e.target.value })} /></label>
+      <label>State
+        <StateAbbrevSelect
+          value={form.state}
+          fallbackLabel={form.state}
+          onChange={(v) => setForm({ ...form, state: v || '' })}
+        />
+      </label>
       <label>Phone<input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></label>
       <label>Fax<input value={form.fax} onChange={e => setForm({ ...form, fax: e.target.value })} /></label>
       <label className="span-2">Email<input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></label>

@@ -8,6 +8,7 @@ import DirectoryProfileShell from '../../components/layout/DirectoryProfileShell
 import InfoField from '../../components/common/InfoField';
 import StatusBadge from '../../components/common/StatusBadge';
 import IconButton, { RowActions } from '../../components/common/IconButton';
+import { StateAbbrevSelect } from '../../components/directory';
 import { currentListPath, saveListReturn } from '../../navigation/listReturn';
 
 const STEPS = [
@@ -680,7 +681,13 @@ function AddressFacilityForm({ addr, detail, onSave }) {
       <label>ZIP<input value={form.zip} onChange={e => setForm({ ...form, zip: e.target.value })} /></label>
       <label>County<input value={form.county} onChange={e => setForm({ ...form, county: e.target.value })} /></label>
       <label>City<input value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} /></label>
-      <label>State<input value={form.state} onChange={e => setForm({ ...form, state: e.target.value })} /></label>
+      <label>State
+        <StateAbbrevSelect
+          value={form.state}
+          fallbackLabel={form.state}
+          onChange={(v) => setForm({ ...form, state: v || '' })}
+        />
+      </label>
       <label>Country<input value={form.country} onChange={e => setForm({ ...form, country: e.target.value })} /></label>
       <label>Phone<input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></label>
       <label>Fax<input value={form.fax} onChange={e => setForm({ ...form, fax: e.target.value })} /></label>

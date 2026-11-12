@@ -7,6 +7,7 @@ import PageHeader from '../../components/common/PageHeader';
 import StatusBadge from '../../components/common/StatusBadge';
 import IconButton, { RowActions } from '../../components/common/IconButton';
 import CellText from '../../components/common/CellText';
+import DirectorySelect from '../../components/directory/DirectorySelect';
 import { fmt, nested } from '../../utils/format';
 import { currentListPath, LIST_KEYS, saveListReturn } from '../../navigation/listReturn';
 
@@ -34,11 +35,13 @@ export default function RecordPage({ type, scopedId, orgName }) {
   const [rows, setRows] = useState([]);
   const [refs, setRefs] = useState({});
   const [q, setQ] = useState(() => searchParams.get('q') || '');
+  const [specialtyId, setSpecialtyId] = useState(() => searchParams.get('specialtyId') || '');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [dirValues, setDirValues] = useState({});
 
   // Keep list query in the URL so refresh / back restore works.
   useEffect(() => {
@@ -59,7 +62,14 @@ export default function RecordPage({ type, scopedId, orgName }) {
     setError('');
     try {
       const [r, ...related] = await Promise.all([
-        api.get(`/${cfg.resource}`, { params: { q, limit: 100, ...(scopedId ? { organizationId: scopedId } : {}) } }),
+        api.get(`/${cfg.resource}`, {
+          params: {
+            q,
+            limit: 100,
+            ...(scopedId ? { organizationId: scopedId } : {}),
+            ...(type === 'providers' && specialtyId ? { specialtyId } : {})
+          }
+        }),
         ...cfg.fields.filter(f => f[2] === 'relation').map(f =>
           api.get(`/${f[3]}`, { params: { limit: 100, ...(scopedId ? { organizationId: scopedId } : {}) } })
         )
@@ -77,10 +87,15 @@ export default function RecordPage({ type, scopedId, orgName }) {
   useEffect(() => {
     const t = setTimeout(load, 200);
     return () => clearTimeout(t);
-  }, [q, type, scopedId]);
+  }, [q, type, scopedId, specialtyId]);
 
   function start(row = null) {
     setEditing(row);
+    const initial = {};
+    (cfg.fields || []).filter(f => f[2] === 'directory').forEach(f => {
+      initial[f[0]] = row?.[f[0]] || '';
+    });
+    setDirValues(initial);
     setModal(true);
   }
 
@@ -147,10 +162,12 @@ export default function RecordPage({ type, scopedId, orgName }) {
     const fd = new FormData(e.currentTarget);
     const body = {};
     cfg.fields.forEach(f => {
-      let v = fd.get(f[0]);
-      if (v !== null && v !== '') {
+      let v = f[2] === 'directory' ? (dirValues[f[0]] ?? fd.get(f[0])) : fd.get(f[0]);
+      if (v !== null && v !== '' && v !== undefined) {
         if (f[2] === 'date') v = new Date(`${v}T12:00:00`).toISOString();
         body[f[0]] = v;
+      } else if (f[2] === 'directory' && editing) {
+        body[f[0]] = null;
       }
     });
     if (scopedId && ['practices', 'facilities', 'enrollments', 'documents'].includes(type)) {
@@ -286,9 +303,20 @@ export default function RecordPage({ type, scopedId, orgName }) {
             <Search size={17} />
             <input placeholder={cfg.search} value={q} onChange={e => setQ(e.target.value)} aria-label={cfg.search} />
           </div>
-          {q ? (
-            <button type="button" className="small-action" onClick={() => setQ('')}>
-              Clear search
+          {type === 'providers' ? (
+            <label className="filter-inline" style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 220 }}>
+              <span className="muted" style={{ fontSize: 12 }}>Specialty</span>
+              <DirectorySelect
+                resource="specialties"
+                value={specialtyId}
+                onChange={(v) => setSpecialtyId(v || '')}
+                emptyLabel="All specialties"
+              />
+            </label>
+          ) : null}
+          {q || specialtyId ? (
+            <button type="button" className="small-action" onClick={() => { setQ(''); setSpecialtyId(''); }}>
+              Clear filters
             </button>
           ) : null}
           <span className="record-count">{loading ? 'Loading…' : `${rows.length} records`}</span>
@@ -444,6 +472,25 @@ export default function RecordPage({ type, scopedId, orgName }) {
                         </option>
                       ))}
                     </select>
+                  ) : f[2] === 'directory' ? (
+                    <>
+                      <input type="hidden" name={f[0]} value={dirValues[f[0]] || ''} />
+                      <DirectorySelect
+                        resource={f[3]}
+                        value={dirValues[f[0]] || ''}
+                        required={!!f[4]}
+                        allowEmpty={!f[4]}
+                        selectedOption={
+                          editing?.[f[0].replace(/Id$/, '')]
+                          || editing?.[f[0].replace('Id', '')]
+                          || (f[0] === 'licenseTypeId' ? editing?.licenseType : null)
+                          || (f[0] === 'usStateId' ? editing?.usState : null)
+                          || (f[0] === 'primarySpecialtyId' ? editing?.primarySpecialtyRef : null)
+                          || (f[0] === 'secondarySpecialtyId' ? editing?.secondarySpecialtyRef : null)
+                        }
+                        onChange={(v) => setDirValues((prev) => ({ ...prev, [f[0]]: v || '' }))}
+                      />
+                    </>
                   ) : f[2] === 'textarea' ? (
                     <textarea name={f[0]} defaultValue={editing?.[f[0]] || ''} rows="3" />
                   ) : (

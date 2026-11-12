@@ -6,6 +6,7 @@ export const menu = [
   { label: 'Facilities', path: '/facilities', icon: 'MapPin' },
   { label: 'Payers', path: '/payers', icon: 'ShieldCheck' },
   { label: 'Payer Enrollment', path: '/enrollments', icon: 'CreditCard' },
+  { label: 'Revalidation & Renewals', path: '/revalidation-ops', icon: 'ClipboardCheck' },
   { label: 'Intake', path: '/intake', icon: 'Inbox' },
   { label: 'Credentialing', path: '/cases', icon: 'ClipboardCheck' },
   { label: 'Credentials', path: '/credentials', icon: 'FileText' },
@@ -74,7 +75,8 @@ export const config = {
       ['citizenship', 'Citizenship', 'text'],
       ['gender', 'Gender', 'select', ['Female', 'Male', 'Other', 'Prefer not to say']],
       ['email', 'Email', 'email'], ['homePhone', 'Home Phone', 'text'], ['workPhone', 'Work Phone', 'text'],
-      ['primarySpecialty', 'Primary Specialty', 'text'], ['secondarySpecialty', 'Secondary Specialty', 'text'],
+      ['primarySpecialtyId', 'Primary Specialty', 'directory', 'specialties'],
+      ['secondarySpecialtyId', 'Secondary Specialty', 'directory', 'specialties'],
       ['taxonomyCode', 'Taxonomy Code', 'text'], ['professionalType', 'Professional Type', 'text'],
       ['supervisorName', 'Supervisor Physician', 'text'],
       ['status', 'Status', 'select', ['ACTIVE', 'INACTIVE', 'PENDING', 'ARCHIVED']]
@@ -82,6 +84,9 @@ export const config = {
     columns: [
       ['firstName', 'First name'], ['lastName', 'Last name'], ['npi', 'NPI'],
       ['primarySpecialty', 'Primary specialty'], ['professionalType', 'Type'], ['status', 'Status']
+    ],
+    filters: [
+      ['specialtyId', 'Specialty', 'directory', 'specialties']
     ]
   },
   providerOrganizations: {
@@ -105,15 +110,16 @@ export const config = {
     resource: 'licenses', search: 'Search license, type, or state',
     fields: [
       ['providerId', 'Provider', 'relation', 'providers', true],
-      ['type', 'License / Certification Type', 'text', true], ['number', 'License Number', 'text'],
-      ['state', 'State', 'text'], ['issuingBody', 'Issuing Board / Authority', 'text'],
+      ['licenseTypeId', 'License / Certification Type', 'directory', 'licenseTypes', true],
+      ['number', 'License Number', 'text'],
+      ['usStateId', 'State', 'directory', 'usStates'], ['issuingBody', 'Issuing Board / Authority', 'text'],
       ['issuedAt', 'Issue Date', 'date'], ['expiresAt', 'Expiry Date', 'date'],
       ['status', 'Status', 'select', ['MISSING', 'RECEIVED', 'UNDER_REVIEW', 'VERIFIED', 'REJECTED', 'EXPIRED']],
       ['notes', 'Notes', 'textarea']
     ],
     columns: [
       ['provider.firstName', 'Provider first'], ['provider.lastName', 'Provider last'],
-      ['type', 'Credential'], ['number', 'Number'], ['state', 'State'],
+      ['licenseType.name', 'Credential'], ['number', 'Number'], ['usState.abbreviation', 'State'],
       ['expiresAt', 'Expires'], ['status', 'Status']
     ]
   },
@@ -157,22 +163,26 @@ export const config = {
   payers: {
     title: 'Payers', singular: 'Payer', resource: 'payers', search: 'Search payer',
     fields: [
-      ['name', 'Payer Name', 'text', true], ['payerCode', 'Payer Code', 'text'],
-      ['website', 'Website', 'text'], ['phone', 'Phone', 'text'],
+      ['name', 'Payer Name', 'text', true], ['legalName', 'Legal Name', 'text'],
+      ['payerCode', 'Payer Code', 'text'], ['payerType', 'Payer Type', 'text'],
+      ['website', 'Website', 'text'], ['phone', 'Phone', 'text'], ['fax', 'Fax', 'text'],
+      ['email', 'Email', 'email'], ['notes', 'Notes', 'textarea'],
       ['status', 'Status', 'select', ['ACTIVE', 'INACTIVE', 'PENDING', 'ARCHIVED']]
     ],
     columns: [
-      ['name', 'Payer'], ['payerCode', 'Payer code'], ['phone', 'Phone'],
-      ['website', 'Website'], ['status', 'Status']
+      ['name', 'Payer'], ['payerCode', 'Payer code'], ['payerType', 'Type'],
+      ['phone', 'Phone'], ['website', 'Website'], ['status', 'Status']
     ]
   },
   plans: {
     title: 'Payer Plans', singular: 'Payer Plan', resource: 'plans', search: 'Search payer plan',
     fields: [
       ['payerId', 'Payer', 'relation', 'payers', true],
-      ['name', 'Plan Name', 'text', true], ['planType', 'Plan Type', 'text']
+      ['name', 'Plan Name', 'text', true], ['planCode', 'Plan Code', 'text'],
+      ['planType', 'Plan Type', 'text'], ['stateApplicability', 'State Applicability', 'text'],
+      ['status', 'Status', 'select', ['ACTIVE', 'INACTIVE', 'PENDING', 'ARCHIVED']]
     ],
-    columns: [['name', 'Plan'], ['planType', 'Type'], ['payer.name', 'Payer']]
+    columns: [['name', 'Plan'], ['planCode', 'Code'], ['planType', 'Type'], ['payer.name', 'Payer'], ['status', 'Status']]
   },
   enrollments: {
     title: 'Payer Enrollment Applications', singular: 'Enrollment Application',

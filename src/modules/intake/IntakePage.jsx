@@ -6,6 +6,7 @@ import StatCard from '../../components/common/StatCard';
 import StatusBadge from '../../components/common/StatusBadge';
 import IconButton, { RowActions } from '../../components/common/IconButton';
 import CellText from '../../components/common/CellText';
+import { SpecialtySelect, LicenseTypeSelect, StateSelect, StateAbbrevSelect } from '../../components/directory';
 import { fmt } from '../../utils/format';
 
 const WIZARD_STEPS = [
@@ -17,6 +18,28 @@ const WIZARD_STEPS = [
 
 const emptySummary = { total: 0, pending: 0, sent: 0, converted: 0 };
 
+const emptyDraft = {
+  intakeType: 'PROVIDER',
+  subjectName: '',
+  contactName: '',
+  contactEmail: '',
+  contactPhone: '',
+  firstName: '',
+  lastName: '',
+  providerNpi: '',
+  primarySpecialtyId: '',
+  primarySpecialty: '',
+  licenseTypeId: '',
+  licenseTypeName: '',
+  licenseNumber: '',
+  usStateId: '',
+  licenseState: '',
+  practiceName: '',
+  facilityName: '',
+  addressState: '',
+  notes: ''
+};
+
 export default function IntakePage() {
   const [rows, setRows] = useState([]);
   const [summary, setSummary] = useState(emptySummary);
@@ -24,17 +47,7 @@ export default function IntakePage() {
   const [error, setError] = useState('');
   const [modal, setModal] = useState(false);
   const [step, setStep] = useState(0);
-  const [draft, setDraft] = useState({
-    intakeType: 'PROVIDER',
-    subjectName: '',
-    contactName: '',
-    contactEmail: '',
-    contactPhone: '',
-    providerNpi: '',
-    practiceName: '',
-    facilityName: '',
-    notes: ''
-  });
+  const [draft, setDraft] = useState(emptyDraft);
   const [saving, setSaving] = useState(false);
   const [actionBusy, setActionBusy] = useState('');
 
@@ -77,18 +90,50 @@ export default function IntakePage() {
 
   function openCreate() {
     setStep(0);
-    setDraft({
-      intakeType: 'PROVIDER',
-      subjectName: '',
-      contactName: '',
-      contactEmail: '',
-      contactPhone: '',
-      providerNpi: '',
-      practiceName: '',
-      facilityName: '',
-      notes: ''
-    });
+    setDraft({ ...emptyDraft });
     setModal(true);
+  }
+
+  function buildPayload() {
+    const kind = draft.intakeType;
+    const names = String(draft.subjectName || '').trim().split(/\s+/);
+    const firstName = draft.firstName || names[0] || '';
+    const lastName = draft.lastName || names.slice(1).join(' ') || names[0] || '';
+    return {
+      kind,
+      contactName: draft.contactName || null,
+      contactEmail: draft.contactEmail || null,
+      contactPhone: draft.contactPhone || null,
+      notes: draft.notes || null,
+      payload: {
+        subjectName: draft.subjectName,
+        firstName,
+        lastName,
+        npi: draft.providerNpi || null,
+        provider: {
+          firstName,
+          lastName,
+          npi: draft.providerNpi || null,
+          primarySpecialtyId: draft.primarySpecialtyId || null,
+          primarySpecialty: draft.primarySpecialty || null,
+          license: draft.licenseTypeId || draft.licenseNumber ? {
+            licenseTypeId: draft.licenseTypeId || null,
+            type: draft.licenseTypeName || null,
+            number: draft.licenseNumber || null,
+            usStateId: draft.usStateId || null,
+            state: draft.licenseState || null
+          } : undefined,
+          address: draft.addressState ? { state: draft.addressState } : undefined
+        },
+        practiceName: draft.practiceName || null,
+        facilityName: draft.facilityName || null,
+        practice: draft.practiceName ? { name: draft.practiceName } : undefined,
+        facility: draft.facilityName ? {
+          name: draft.facilityName,
+          address: draft.addressState ? { state: draft.addressState } : undefined
+        } : undefined
+      }
+    };
   }
 
   async function submitWizard(e) {
@@ -100,7 +145,7 @@ export default function IntakePage() {
     setSaving(true);
     setError('');
     try {
-      await api.post('/intake', draft);
+      await api.post('/intake', buildPayload());
       setModal(false);
       await load();
     } catch (err) {
@@ -114,7 +159,26 @@ export default function IntakePage() {
     setActionBusy(`${id}:${action}`);
     setError('');
     try {
-      await api.post(`/intake/${id}/${action}`);
+      if (action === 'invite-provider') {
+        const email = window.prompt('Provider email for secure intake invitation');
+        if (!email) return;
+        const r = await api.post(`/intake/${id}/invite-provider`, { email, send: true });
+        if (r.data?.acceptanceUrl) {
+          setError(`Email not delivered. Share invitation link securely: ${r.data.acceptanceUrl}`);
+        }
+      } else if (action === 'request-changes') {
+        const comments = window.prompt('Comments for the provider (required)');
+        if (!comments) return;
+        await api.post(`/intake/${id}/request-changes`, { comments });
+      } else if (action === 'approve') {
+        await api.post(`/intake/${id}/approve`, {});
+      } else if (action === 'reject') {
+        const reason = window.prompt('Rejection reason (required)');
+        if (!reason) return;
+        await api.post(`/intake/${id}/reject`, { reason });
+      } else {
+        await api.post(`/intake/${id}/${action}`);
+      }
       await load();
     } catch (e) {
       setError(e.response?.data?.error || `Could not ${action} intake request.`);
@@ -179,9 +243,11 @@ export default function IntakePage() {
               ) : rows.map(row => (
                 <tr key={row.id}>
                   <td data-label="Subject">
-                    <CellText strong title={row.subjectName || row.subject || '—'}>{row.subjectName || row.subject || '—'}</CellText>
+                    <CellText strong title={row.payload?.subjectName || row.referenceNo || '—'}>
+                      {row.payload?.subjectName || row.referenceNo || '—'}
+                    </CellText>
                   </td>
-                  <td className="col-narrow" data-label="Type">{fmt(row.intakeType || row.type)}</td>
+                  <td className="col-narrow" data-label="Type">{fmt(row.kind || row.intakeType || row.type)}</td>
                   <td data-label="Contact">
                     <CellText title={[row.contactName, row.contactEmail].filter(Boolean).join(' · ') || '—'}>
                       {row.contactName || '—'}
@@ -194,10 +260,10 @@ export default function IntakePage() {
                     <RowActions>
                       <IconButton
                         icon={Send}
-                        label="Send"
+                        label="Invite provider"
                         tone="view"
                         disabled={!!actionBusy}
-                        onClick={() => runAction(row.id, 'send')}
+                        onClick={() => runAction(row.id, 'invite-provider')}
                       />
                       <IconButton
                         icon={Eye}
@@ -205,6 +271,20 @@ export default function IntakePage() {
                         tone="history"
                         disabled={!!actionBusy}
                         onClick={() => runAction(row.id, 'review')}
+                      />
+                      <IconButton
+                        icon={Inbox}
+                        label="Request changes"
+                        tone="history"
+                        disabled={!!actionBusy}
+                        onClick={() => runAction(row.id, 'request-changes')}
+                      />
+                      <IconButton
+                        icon={Eye}
+                        label="Approve"
+                        tone="activate"
+                        disabled={!!actionBusy}
+                        onClick={() => runAction(row.id, 'approve')}
                       />
                       <IconButton
                         icon={ArrowRightLeft}
@@ -256,7 +336,7 @@ export default function IntakePage() {
                       value={draft.intakeType}
                       onChange={e => setDraft(d => ({ ...d, intakeType: e.target.value }))}
                     >
-                      {['PROVIDER', 'ORGANIZATION', 'PRACTICE', 'FACILITY'].map(t => (
+                      {['PROVIDER', 'ORGANIZATION', 'PRACTICE', 'FACILITY', 'COMBINED'].map(t => (
                         <option key={t} value={t}>{t.replaceAll('_', ' ')}</option>
                       ))}
                     </select>
@@ -280,9 +360,56 @@ export default function IntakePage() {
               )}
               {step === 2 && (
                 <>
-                  <label>Provider NPI<input value={draft.providerNpi} onChange={e => setDraft(d => ({ ...d, providerNpi: e.target.value }))} /></label>
-                  <label>Practice name<input value={draft.practiceName} onChange={e => setDraft(d => ({ ...d, practiceName: e.target.value }))} /></label>
-                  <label className="span-2">Facility name<input value={draft.facilityName} onChange={e => setDraft(d => ({ ...d, facilityName: e.target.value }))} /></label>
+                  {(draft.intakeType === 'PROVIDER' || draft.intakeType === 'COMBINED') && (
+                    <>
+                      <label>First name<input value={draft.firstName} onChange={e => setDraft(d => ({ ...d, firstName: e.target.value }))} /></label>
+                      <label>Last name<input value={draft.lastName} onChange={e => setDraft(d => ({ ...d, lastName: e.target.value }))} /></label>
+                      <label>Provider NPI<input value={draft.providerNpi} onChange={e => setDraft(d => ({ ...d, providerNpi: e.target.value }))} /></label>
+                      <label>Specialty
+                        <SpecialtySelect
+                          value={draft.primarySpecialtyId}
+                          onChange={(v, opt) => setDraft(d => ({
+                            ...d,
+                            primarySpecialtyId: v || '',
+                            primarySpecialty: opt?.name || opt?.label || ''
+                          }))}
+                        />
+                      </label>
+                      <label>License type
+                        <LicenseTypeSelect
+                          value={draft.licenseTypeId}
+                          onChange={(v, opt) => setDraft(d => ({
+                            ...d,
+                            licenseTypeId: v || '',
+                            licenseTypeName: opt?.name || opt?.label || ''
+                          }))}
+                        />
+                      </label>
+                      <label>License number<input value={draft.licenseNumber} onChange={e => setDraft(d => ({ ...d, licenseNumber: e.target.value }))} /></label>
+                      <label>License state
+                        <StateSelect
+                          value={draft.usStateId}
+                          onChange={(v, opt) => setDraft(d => ({
+                            ...d,
+                            usStateId: v || '',
+                            licenseState: opt?.abbreviation || ''
+                          }))}
+                        />
+                      </label>
+                    </>
+                  )}
+                  {(draft.intakeType === 'PRACTICE' || draft.intakeType === 'COMBINED') && (
+                    <label>Practice name<input value={draft.practiceName} onChange={e => setDraft(d => ({ ...d, practiceName: e.target.value }))} /></label>
+                  )}
+                  {(draft.intakeType === 'FACILITY' || draft.intakeType === 'COMBINED') && (
+                    <label className="span-2">Facility name<input value={draft.facilityName} onChange={e => setDraft(d => ({ ...d, facilityName: e.target.value }))} /></label>
+                  )}
+                  <label>Address state
+                    <StateAbbrevSelect
+                      value={draft.addressState}
+                      onChange={(v) => setDraft(d => ({ ...d, addressState: v || '' }))}
+                    />
+                  </label>
                 </>
               )}
               {step === 3 && (
@@ -291,6 +418,8 @@ export default function IntakePage() {
                   <span>Type: {draft.intakeType}</span>
                   <span>Contact: {draft.contactName} · {draft.contactEmail}</span>
                   {draft.providerNpi && <span>NPI: {draft.providerNpi}</span>}
+                  {draft.primarySpecialty && <span>Specialty: {draft.primarySpecialty}</span>}
+                  {draft.licenseTypeName && <span>License: {draft.licenseTypeName}</span>}
                   {draft.practiceName && <span>Practice: {draft.practiceName}</span>}
                   {draft.facilityName && <span>Facility: {draft.facilityName}</span>}
                   <label className="span-2" style={{ marginTop: 10 }}>

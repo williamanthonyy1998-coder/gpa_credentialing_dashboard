@@ -9,14 +9,21 @@ import InfoField from '../../components/common/InfoField';
 import MaskedField from '../../components/common/MaskedField';
 import StatusBadge from '../../components/common/StatusBadge';
 import IconButton, { RowActions } from '../../components/common/IconButton';
+import { SpecialtySelect, StateAbbrevSelect, StateSelect, LicenseTypeSelect } from '../../components/directory';
 import { currentListPath, saveListReturn } from '../../navigation/listReturn';
+import ProfessionalHistoryPanel from './ProfessionalHistoryPanel';
+import IntegrationPanel from '../integrations/IntegrationPanel';
 
 const STEPS = [
   { key: 'personal', label: 'Personal & Professional' },
+  { key: 'readiness', label: 'Credentialing Readiness' },
   { key: 'licenses', label: 'Licenses' },
+  { key: 'history', label: 'Professional History' },
   { key: 'affiliations', label: 'Affiliations' },
   { key: 'enrollments', label: 'Enrollments & Cases' },
+  { key: 'integrations', label: 'Integrations' },
   { key: 'credentials', label: 'Credentials & Documents' },
+  { key: 'gaps', label: 'Gaps & Actions' },
   { key: 'activity', label: 'Activity' }
 ];
 
@@ -62,6 +69,12 @@ export default function ProviderProfile() {
   const [saving, setSaving] = useState(false);
   const [searchQ, setSearchQ] = useState('');
   const [searchHits, setSearchHits] = useState([]);
+  const [licenseRows, setLicenseRows] = useState([]);
+  const [licenseSummary, setLicenseSummary] = useState(null);
+  const [licenseCompleteness, setLicenseCompleteness] = useState(null);
+  const [credentialingProfile, setCredentialingProfile] = useState(null);
+  const [readinessBusy, setReadinessBusy] = useState(false);
+  const [correctionNotes, setCorrectionNotes] = useState('');
   const dirty = !!editModal;
 
   useEffect(() => {
@@ -82,6 +95,26 @@ export default function ProviderProfile() {
     setAllProviders(r.data);
   }
 
+  async function loadLicenses(pid) {
+    if (!pid) return;
+    const [rows, completeness, summary] = await Promise.all([
+      api.get(`/provider-licenses/providers/${pid}`).then(r => r.data).catch(() => []),
+      api.get(`/provider-licenses/providers/${pid}/completeness`).then(r => r.data).catch(() => null),
+      api.get('/provider-licenses/expiration-summary', { params: { providerId: pid } }).then(r => r.data).catch(() => null)
+    ]);
+    setLicenseRows(Array.isArray(rows) ? rows : []);
+    setLicenseCompleteness(completeness);
+    setLicenseSummary(summary);
+  }
+
+  async function loadCredentialingProfile(pid, syncGaps = false) {
+    if (!pid) return;
+    const r = await api.get(`/providers/${pid}/credentialing-profile`, {
+      params: syncGaps ? { syncGaps: '1' } : undefined
+    });
+    setCredentialingProfile(r.data);
+  }
+
   async function loadDetail(pid) {
     if (!pid) return;
     const d = (await api.get(`/providers/${pid}`)).data;
@@ -96,6 +129,8 @@ export default function ProviderProfile() {
     setCases(caseRows);
     setDocuments(creds);
     setAttention(attentionFromDocs(creds));
+    await loadLicenses(pid);
+    await loadCredentialingProfile(pid).catch(() => setCredentialingProfile(null));
   }
 
   useEffect(() => {
@@ -125,7 +160,7 @@ export default function ProviderProfile() {
   const orgAffiliations = detail?.organizations || [];
   const practiceAffiliations = detail?.practices || [];
   const facilityAffiliations = detail?.facilities || [];
-  const licenses = detail?.licenses || [];
+  const licenses = licenseRows.length ? licenseRows : (detail?.licenses || []);
 
   async function saveProvider(body) {
     setSaving(true);
@@ -195,14 +230,15 @@ export default function ProviderProfile() {
     }
     setSaving(true);
     try {
-      await api.post('/licenses', {
-        providerId: pid,
+      await api.post(`/provider-licenses/providers/${pid}`, {
+        licenseTypeId: form.licenseTypeId || null,
+        usStateId: form.usStateId || null,
         type: form.type,
         number: form.number || null,
         state: form.state || null,
         issuedAt: form.issuedAt ? new Date(`${form.issuedAt}T12:00:00`).toISOString() : null,
         expiresAt: form.expiresAt ? new Date(`${form.expiresAt}T12:00:00`).toISOString() : null,
-        status: form.status || 'RECEIVED'
+        isPrimary: Boolean(form.isPrimary)
       });
       await loadDetail(pid);
       setEditModal(null);
@@ -210,6 +246,31 @@ export default function ProviderProfile() {
       setError(e.response?.data?.error || e.message || 'Could not save license.');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function licenseAction(id, action, body = {}) {
+    setError('');
+    try {
+      if (action === 'renew') {
+        const expiresAt = window.prompt('New expiration date (YYYY-MM-DD):');
+        if (!expiresAt) return;
+        await api.post(`/provider-licenses/${id}/renew`, { expiresAt: new Date(`${expiresAt}T12:00:00`).toISOString() });
+      } else if (action === 'reject') {
+        const reason = window.prompt('Rejection reason (required):');
+        if (!reason || reason.trim().length < 2) return;
+        await api.post(`/provider-licenses/${id}/reject`, { reason: reason.trim() });
+      } else if (action === 'correction') {
+        const comments = window.prompt('Correction request:');
+        if (!comments || comments.trim().length < 2) return;
+        await api.post(`/provider-licenses/${id}/request-correction`, { comments: comments.trim() });
+      } else {
+        await api.post(`/provider-licenses/${id}/${action}`, body);
+      }
+      await loadLicenses(providerId);
+      await loadDetail(providerId);
+    } catch (e) {
+      setError(e.response?.data?.error || e.message || `License ${action} failed`);
     }
   }
 
@@ -306,11 +367,266 @@ export default function ProviderProfile() {
           </div>
           <SectionHead title="PROFESSIONAL" onEdit={() => setEditModal('professional')} />
           <div className="info-grid">
-            <InfoField label="PRIMARY SPECIALTY" value={detail?.primarySpecialty} />
-            <InfoField label="SECONDARY SPECIALTY" value={detail?.secondarySpecialty} />
+            <InfoField label="PRIMARY SPECIALTY" value={detail?.primarySpecialtyRef?.name || detail?.primarySpecialty} />
+            <InfoField label="SECONDARY SPECIALTY" value={detail?.secondarySpecialtyRef?.name || detail?.secondarySpecialty} />
             <InfoField label="TAXONOMY CODE" value={detail?.taxonomyCode} />
             <InfoField label="PROFESSIONAL TYPE" value={detail?.professionalType} />
             <InfoField label="SUPERVISOR PHYSICIAN" value={detail?.supervisorName} className="span-2" />
+          </div>
+        </>
+      )}
+
+      {stepKey === 'readiness' && (
+        <>
+          <div className="section-head">
+            <h2>CREDENTIALING READINESS</h2>
+            <button
+              type="button"
+              className="btn secondary"
+              disabled={readinessBusy || !providerId}
+              onClick={async () => {
+                setReadinessBusy(true);
+                try {
+                  await loadCredentialingProfile(providerId, true);
+                } catch (e) {
+                  setError(e.response?.data?.error || e.message || 'Could not refresh readiness');
+                } finally {
+                  setReadinessBusy(false);
+                }
+              }}
+            >
+              Recalculate
+            </button>
+          </div>
+          <p className="muted">
+            Operational assessment only — not payer enrollment approval, Medicare/Medicaid enrollment,
+            or authorization to practice.
+          </p>
+          {credentialingProfile ? (
+            <>
+              <div className="banner" style={{ background: '#f4f7fb', padding: 12, marginBottom: 12 }}>
+                <strong>Overall: {credentialingProfile.readiness?.overall || '—'}</strong>
+                <div className="muted" style={{ marginTop: 4 }}>
+                  Assessed {credentialingProfile.readiness?.assessedAt ? fmtDate(credentialingProfile.readiness.assessedAt) : '—'}
+                  {' · '}Profile review: {credentialingProfile.profileReview?.status || 'NOT_STARTED'}
+                </div>
+              </div>
+              <div className="info-grid" style={{ marginBottom: 16 }}>
+                {Object.entries(credentialingProfile.credentialingSummary || {}).map(([k, v]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    className="info-field"
+                    style={{ textAlign: 'left', cursor: 'pointer', border: '1px solid #d8e0ea', background: '#fff', padding: 10 }}
+                    onClick={() => {
+                      if (k === 'licenses' || k === 'verification' || k === 'expirationAttention') setStep('licenses');
+                      else if (k === 'professionalHistory') setStep('history');
+                      else if (k === 'credentialDocuments') setStep('credentials');
+                      else if (k === 'outstandingReviews') setStep('gaps');
+                      else setStep('personal');
+                    }}
+                  >
+                    <div className="muted" style={{ fontSize: 11, textTransform: 'uppercase' }}>{k}</div>
+                    <div><StatusBadge value={v || 'NOT_ASSESSED'} /></div>
+                  </button>
+                ))}
+              </div>
+              <SectionHead title="DIMENSIONS" />
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Dimension</th>
+                      <th>Status</th>
+                      <th>Issues</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(credentialingProfile.readiness?.dimensions || []).map((d) => (
+                      <tr key={d.key}>
+                        <td>
+                          <button type="button" className="linkish" onClick={() => d.hrefHint && setStep(d.hrefHint === 'readiness' ? 'gaps' : d.hrefHint)}>
+                            {d.label}
+                          </button>
+                        </td>
+                        <td><StatusBadge value={d.status} /></td>
+                        <td>
+                          {(d.issues || []).length === 0 ? '—' : (
+                            <ul style={{ margin: 0, paddingLeft: 16 }}>
+                              {d.issues.slice(0, 4).map((issue) => (
+                                <li key={`${issue.code}-${issue.recordId || ''}`}>
+                                  {issue.message}
+                                  <div className="muted" style={{ fontSize: 12 }}>{issue.recommendedAction}</div>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <SectionHead title="PROFILE REVIEW" />
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={readinessBusy}
+                  onClick={async () => {
+                    setReadinessBusy(true);
+                    try {
+                      await api.post(`/providers/${providerId}/review/start`, {});
+                      await loadCredentialingProfile(providerId, true);
+                    } catch (e) {
+                      setError(e.response?.data?.error || e.message || 'Start review failed');
+                    } finally {
+                      setReadinessBusy(false);
+                    }
+                  }}
+                >
+                  Start review
+                </button>
+                <button
+                  type="button"
+                  className="btn secondary"
+                  disabled={readinessBusy || !correctionNotes.trim()}
+                  onClick={async () => {
+                    setReadinessBusy(true);
+                    try {
+                      await api.post(`/providers/${providerId}/review/request-corrections`, {
+                        clientVisibleNotes: correctionNotes.trim()
+                      });
+                      setCorrectionNotes('');
+                      await loadCredentialingProfile(providerId, true);
+                    } catch (e) {
+                      setError(e.response?.data?.error || e.message || 'Request corrections failed');
+                    } finally {
+                      setReadinessBusy(false);
+                    }
+                  }}
+                >
+                  Request corrections
+                </button>
+                <button
+                  type="button"
+                  className="btn secondary"
+                  disabled={readinessBusy}
+                  onClick={async () => {
+                    setReadinessBusy(true);
+                    try {
+                      await api.post(`/providers/${providerId}/review/complete`, {});
+                      await loadCredentialingProfile(providerId, true);
+                    } catch (e) {
+                      setError(e.response?.data?.error || e.message || 'Complete review failed');
+                    } finally {
+                      setReadinessBusy(false);
+                    }
+                  }}
+                >
+                  Complete review
+                </button>
+              </div>
+              <textarea
+                className="input"
+                rows={3}
+                placeholder="Client-visible correction notes (required to request corrections)"
+                value={correctionNotes}
+                onChange={(e) => setCorrectionNotes(e.target.value)}
+              />
+              {credentialingProfile.profileReview?.clientVisibleNotes && (
+                <p className="muted">Last client-visible notes: {credentialingProfile.profileReview.clientVisibleNotes}</p>
+              )}
+              {credentialingProfile.profileReview?.internalNotes && (
+                <p className="muted">Internal notes: {credentialingProfile.profileReview.internalNotes}</p>
+              )}
+            </>
+          ) : (
+            <p className="muted">Loading readiness…</p>
+          )}
+        </>
+      )}
+
+      {stepKey === 'gaps' && (
+        <>
+          <div className="section-head">
+            <h2>GAPS & ACTION ITEMS</h2>
+            <button
+              type="button"
+              className="btn secondary"
+              disabled={readinessBusy || !providerId}
+              onClick={async () => {
+                setReadinessBusy(true);
+                try {
+                  await api.post(`/providers/${providerId}/gaps/recalculate`);
+                  await loadCredentialingProfile(providerId);
+                } catch (e) {
+                  setError(e.response?.data?.error || e.message || 'Gap recalculation failed');
+                } finally {
+                  setReadinessBusy(false);
+                }
+              }}
+            >
+              Recalculate gaps
+            </button>
+          </div>
+          <p className="muted">
+            Generated credentialing gaps use the existing Task system (source=CREDENTIALING_GAP).
+            Gaps resolve only when underlying data satisfies the requirement.
+          </p>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Priority</th>
+                  <th>Title</th>
+                  <th>Category</th>
+                  <th>Status</th>
+                  <th>Next action</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {(credentialingProfile?.gaps || []).length === 0 && (
+                  <tr><td colSpan={6} className="muted">No open credentialing gaps.</td></tr>
+                )}
+                {(credentialingProfile?.gaps || []).map((g) => (
+                  <tr key={g.id}>
+                    <td><StatusBadge value={g.priority} /></td>
+                    <td>{g.title}</td>
+                    <td>{g.category || '—'}</td>
+                    <td><StatusBadge value={g.status} /></td>
+                    <td className="muted">{g.recommendedNextAction || '—'}</td>
+                    <td>
+                      <RowActions>
+                        <IconButton
+                          title="Open section"
+                          icon={Eye}
+                          onClick={() => {
+                            if (g.relatedType === 'licenses') setStep('licenses');
+                            else if (String(g.relatedType || '').includes('history') || ['education', 'employment', 'malpractice'].includes(g.relatedType)) setStep('history');
+                            else if (g.relatedType === 'credentials') setStep('credentials');
+                            else setStep('readiness');
+                          }}
+                        />
+                        <IconButton
+                          title="Attempt resolve"
+                          icon={Pencil}
+                          onClick={async () => {
+                            try {
+                              await api.post(`/providers/${providerId}/gaps/${g.id}/resolve`);
+                              await loadCredentialingProfile(providerId);
+                            } catch (e) {
+                              setError(e.response?.data?.error || e.message || 'Gap still open — fix underlying data first');
+                            }
+                          }}
+                        />
+                      </RowActions>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </>
       )}
@@ -321,9 +637,36 @@ export default function ProviderProfile() {
             <h2>LICENSES & CERTIFICATIONS</h2>
             <button type="button" className="icon-round" onClick={() => setEditModal('license')} aria-label="Add license" title="Add license"><Plus size={14} /></button>
           </div>
+          {licenseSummary?.counts && (
+            <div className="muted" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
+              <span>Active: {licenseSummary.counts.active}</span>
+              <span>Expiring 30d: {licenseSummary.counts.expiring30}</span>
+              <span>Expiring 90d: {licenseSummary.counts.expiring90}</span>
+              <span>Expired: {licenseSummary.counts.expired}</span>
+              <span>Pending: {licenseSummary.counts.pendingVerification}</span>
+              <span>Incomplete: {licenseSummary.counts.incomplete}</span>
+            </div>
+          )}
+          {licenseCompleteness && (
+            <div className="banner" style={{ background: '#f4f7fb', padding: 12, marginBottom: 12 }}>
+              <strong>Credential completeness</strong>
+              <div className="muted" style={{ marginTop: 4 }}>
+                Verified licenses: {licenseCompleteness.counts?.licensesVerified || 0} ·
+                Pending: {licenseCompleteness.counts?.licensesPending || 0} ·
+                Trusted documents: {licenseCompleteness.counts?.documentsTrusted || 0} ·
+                Quarantined docs: {licenseCompleteness.counts?.documentsQuarantined || 0}
+              </div>
+              {(licenseCompleteness.unresolved || []).length > 0 && (
+                <ul style={{ margin: '8px 0 0', paddingLeft: 18 }}>
+                  {licenseCompleteness.unresolved.map((u) => <li key={u}>{u}</li>)}
+                </ul>
+              )}
+              <p className="muted" style={{ marginBottom: 0 }}>{licenseCompleteness.disclaimer}</p>
+            </div>
+          )}
           <p className="muted" style={{ marginBottom: 12 }}>
-            Manage licenses in the profile or open the{' '}
-            <button type="button" className="text-link" onClick={() => nav('/licenses')}>licenses workspace</button>.
+            Upload does not verify a license. Quarantined documents are not trusted evidence.
+            Manual verification records reviewer identity — this is not an automated state-board API.
           </p>
           <div className="table-scroll table-cards">
             <table className="brand-table">
@@ -334,24 +677,58 @@ export default function ProviderProfile() {
                   <th className="col-mid">Number</th>
                   <th className="col-narrow">State</th>
                   <th className="col-date">Expires</th>
-                  <th className="col-status">Status</th>
+                  <th className="col-status">Attention</th>
+                  <th className="col-status">Verification</th>
+                  <th />
                 </tr>
               </thead>
               <tbody>
                 {licenses.map((lic, i) => (
                   <tr key={lic.id}>
                     <td className="col-index" data-label="#">{i + 1}</td>
-                    <td className="cell-strong" data-label="Type"><span className="cell-clip" title={lic.type}>{lic.type}</span></td>
+                    <td className="cell-strong" data-label="Type"><span className="cell-clip" title={lic.licenseType?.name || lic.type}>{lic.licenseType?.name || lic.type}</span></td>
                     <td className="col-mid" data-label="Number"><span className="cell-clip" title={lic.number || '—'}>{lic.number || '—'}</span></td>
-                    <td className="col-narrow" data-label="State">{lic.state || '—'}</td>
+                    <td className="col-narrow" data-label="State">{lic.usState?.abbreviation || lic.state || '—'}</td>
                     <td className="col-date" data-label="Expires">{fmtDate(lic.expiresAt)}</td>
-                    <td className="col-status" data-label="Status"><StatusBadge value={lic.status} /></td>
+                    <td className="col-status" data-label="Attention"><StatusBadge value={lic.attention || lic.status} /></td>
+                    <td className="col-status" data-label="Verification"><StatusBadge value={lic.verificationStatus || lic.status} /></td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {(!lic.verificationStatus || lic.verificationStatus === 'NOT_SUBMITTED' || lic.verificationStatus === 'DRAFT' || lic.attention === 'DRAFT') && (
+                          <button type="button" className="secondary" onClick={() => licenseAction(lic.id, 'submit')}>Submit</button>
+                        )}
+                        {lic.verificationStatus === 'PENDING_REVIEW' && (
+                          <>
+                            <button type="button" className="primary" onClick={() => licenseAction(lic.id, 'verify', { verificationSource: 'manual_review' })}>Verify</button>
+                            <button type="button" className="secondary" onClick={() => licenseAction(lic.id, 'reject')}>Reject</button>
+                            <button type="button" className="secondary" onClick={() => licenseAction(lic.id, 'correction')}>Request corrections</button>
+                          </>
+                        )}
+                        <button type="button" className="secondary" onClick={() => licenseAction(lic.id, 'renew')}>Renew</button>
+                        <button type="button" className="secondary" onClick={() => licenseAction(lic.id, 'archive')}>Archive</button>
+                      </div>
+                      {lic.correctionRequest && <div className="muted">Corrections: {lic.correctionRequest}</div>}
+                      {lic.rejectionReason && <div className="muted">Rejected: {lic.rejectionReason}</div>}
+                    </td>
                   </tr>
                 ))}
-                {!licenses.length && <tr><td colSpan="6" className="table-empty">No licenses on file. Add a license or use the licenses list.</td></tr>}
+                {!licenses.length && <tr><td colSpan="8" className="table-empty">No licenses on file. Add a license to begin review.</td></tr>}
               </tbody>
             </table>
           </div>
+        </>
+      )}
+
+      {stepKey === 'history' && (
+        <>
+          <div className="section-head">
+            <h2>PROFESSIONAL HISTORY</h2>
+          </div>
+          {!providerId ? (
+            <p className="muted">Save the provider first to manage professional history.</p>
+          ) : (
+            <ProfessionalHistoryPanel providerId={providerId} canVerify />
+          )}
         </>
       )}
 
@@ -456,6 +833,7 @@ export default function ProviderProfile() {
       {stepKey === 'enrollments' && (
         <>
           <div className="section-head"><h2>ENROLLMENTS</h2></div>
+          <p className="muted">Payer enrollment is separate from credentialing readiness. Lifecycle actions are managed on the Enrollments page.</p>
           <div className="table-scroll table-cards">
             <table className="brand-table">
               <thead>
@@ -463,7 +841,9 @@ export default function ProviderProfile() {
                   <th>Application</th>
                   <th>Payer / Plan</th>
                   <th className="col-status">Status</th>
+                  <th>Attention</th>
                   <th className="col-date">Submitted</th>
+                  <th className="col-date">Effective</th>
                 </tr>
               </thead>
               <tbody>
@@ -472,10 +852,12 @@ export default function ProviderProfile() {
                     <td className="cell-strong" data-label="Application"><span className="cell-clip" title={e.applicationNo}>{e.applicationNo}</span></td>
                     <td data-label="Payer / Plan"><span className="cell-clip" title={e.payerPlan?.payer?.name || e.payerPlan?.name || '—'}>{e.payerPlan?.payer?.name || e.payerPlan?.name || '—'}</span></td>
                     <td className="col-status" data-label="Status"><StatusBadge value={e.status} /></td>
-                    <td className="col-date" data-label="Submitted">{fmtDate(e.submittedAt || e.createdAt)}</td>
+                    <td data-label="Attention"><StatusBadge value={e.attention || '—'} /></td>
+                    <td className="col-date" data-label="Submitted">{fmtDate(e.submittedAt)}</td>
+                    <td className="col-date" data-label="Effective">{fmtDate(e.effectiveAt)}</td>
                   </tr>
                 ))}
-                {!enrollments.length && <tr><td colSpan="4" className="table-empty">No enrollments linked to this provider.</td></tr>}
+                {!enrollments.length && <tr><td colSpan="6" className="table-empty">No enrollments linked to this provider.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -509,6 +891,18 @@ export default function ProviderProfile() {
             <button type="button" className="text-link" onClick={() => nav('/cases')}>Open cases</button>
           </p>
         </>
+      )}
+
+      {stepKey === 'integrations' && providerId && (
+        <IntegrationPanel
+          providerId={providerId}
+          canConfigure={['ADMIN', 'CREDENTIALING_MANAGER'].includes(
+            (() => { try { return JSON.parse(localStorage.getItem('credentialing_user') || '{}').role; } catch { return ''; } })()
+          )}
+          canManageAuth={!['CLIENT_USER', 'EXTERNAL_PROVIDER', 'READ_ONLY'].includes(
+            (() => { try { return JSON.parse(localStorage.getItem('credentialing_user') || '{}').role; } catch { return ''; } })()
+          )}
+        />
       )}
 
       {stepKey === 'credentials' && (
@@ -662,8 +1056,10 @@ function ProviderForm({ detail, addr, mode, onSave, saving }) {
     city: addr.city || '',
     state: addr.state || '',
     zip: addr.zip || '',
-    primarySpecialty: detail?.primarySpecialty || '',
-    secondarySpecialty: detail?.secondarySpecialty || '',
+    primarySpecialtyId: detail?.primarySpecialtyId || detail?.primarySpecialtyRef?.id || '',
+    secondarySpecialtyId: detail?.secondarySpecialtyId || detail?.secondarySpecialtyRef?.id || '',
+    primarySpecialty: detail?.primarySpecialty || detail?.primarySpecialtyRef?.name || '',
+    secondarySpecialty: detail?.secondarySpecialty || detail?.secondarySpecialtyRef?.name || '',
     taxonomyCode: detail?.taxonomyCode || '',
     professionalType: detail?.professionalType || '',
     supervisorName: detail?.supervisorName || '',
@@ -698,8 +1094,8 @@ function ProviderForm({ detail, addr, mode, onSave, saving }) {
       });
     } else {
       Object.assign(body, {
-        primarySpecialty: form.primarySpecialty || null,
-        secondarySpecialty: form.secondarySpecialty || null,
+        primarySpecialtyId: form.primarySpecialtyId || null,
+        secondarySpecialtyId: form.secondarySpecialtyId || null,
         taxonomyCode: form.taxonomyCode || null,
         professionalType: form.professionalType || null,
         supervisorName: form.supervisorName || null
@@ -740,14 +1136,42 @@ function ProviderForm({ detail, addr, mode, onSave, saving }) {
           <label>Work Phone<input value={form.workPhone} onChange={e => setForm({ ...form, workPhone: e.target.value })} /></label>
           <label className="span-2">Street<input value={form.street} onChange={e => setForm({ ...form, street: e.target.value })} /></label>
           <label>City<input value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} /></label>
-          <label>State<input value={form.state} onChange={e => setForm({ ...form, state: e.target.value })} /></label>
+          <label>State
+            <StateAbbrevSelect
+              value={form.state}
+              fallbackLabel={form.state}
+              onChange={(v) => setForm({ ...form, state: v || '' })}
+            />
+          </label>
           <label>ZIP<input value={form.zip} onChange={e => setForm({ ...form, zip: e.target.value })} /></label>
         </>
       )}
       {mode === 'professional' && (
         <>
-          <label>Primary Specialty<input value={form.primarySpecialty} onChange={e => setForm({ ...form, primarySpecialty: e.target.value })} /></label>
-          <label>Secondary Specialty<input value={form.secondarySpecialty} onChange={e => setForm({ ...form, secondarySpecialty: e.target.value })} /></label>
+          <label>Primary Specialty
+            <SpecialtySelect
+              value={form.primarySpecialtyId}
+              selectedOption={detail?.primarySpecialtyRef}
+              fallbackLabel={form.primarySpecialty}
+              onChange={(v, opt) => setForm({
+                ...form,
+                primarySpecialtyId: v || '',
+                primarySpecialty: opt?.name || opt?.label || ''
+              })}
+            />
+          </label>
+          <label>Secondary Specialty
+            <SpecialtySelect
+              value={form.secondarySpecialtyId}
+              selectedOption={detail?.secondarySpecialtyRef}
+              fallbackLabel={form.secondarySpecialty}
+              onChange={(v, opt) => setForm({
+                ...form,
+                secondarySpecialtyId: v || '',
+                secondarySpecialty: opt?.name || opt?.label || ''
+              })}
+            />
+          </label>
           <label>Taxonomy Code<input value={form.taxonomyCode} onChange={e => setForm({ ...form, taxonomyCode: e.target.value })} /></label>
           <label>Professional Type<input value={form.professionalType} onChange={e => setForm({ ...form, professionalType: e.target.value })} /></label>
           <label className="span-2">Supervisor Physician<input value={form.supervisorName} onChange={e => setForm({ ...form, supervisorName: e.target.value })} /></label>
@@ -762,13 +1186,45 @@ function ProviderForm({ detail, addr, mode, onSave, saving }) {
 
 function LicenseForm({ onSave, saving }) {
   const [form, setForm] = useState({
-    type: '', number: '', state: '', issuedAt: '', expiresAt: '', status: 'RECEIVED'
+    licenseTypeId: '', usStateId: '', type: '', number: '', state: '', issuedAt: '', expiresAt: '', status: 'RECEIVED'
   });
   return (
-    <form className="form-grid" onSubmit={e => { e.preventDefault(); onSave(form); }}>
-      <label className="span-2">License / certification type<input required value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} /></label>
+    <form className="form-grid" onSubmit={e => {
+      e.preventDefault();
+      onSave({
+        licenseTypeId: form.licenseTypeId || null,
+        usStateId: form.usStateId || null,
+        type: form.type || undefined,
+        number: form.number || null,
+        state: form.state || null,
+        issuedAt: form.issuedAt || null,
+        expiresAt: form.expiresAt || null,
+        status: form.status
+      });
+    }}>
+      <label className="span-2">License / certification type
+        <LicenseTypeSelect
+          required
+          allowEmpty={false}
+          value={form.licenseTypeId}
+          onChange={(v, opt) => setForm({
+            ...form,
+            licenseTypeId: v || '',
+            type: opt?.name || opt?.label || form.type
+          })}
+        />
+      </label>
       <label>Number<input value={form.number} onChange={e => setForm({ ...form, number: e.target.value })} /></label>
-      <label>State<input value={form.state} onChange={e => setForm({ ...form, state: e.target.value })} /></label>
+      <label>State
+        <StateSelect
+          value={form.usStateId}
+          onChange={(v, opt) => setForm({
+            ...form,
+            usStateId: v || '',
+            state: opt?.abbreviation || form.state
+          })}
+        />
+      </label>
       <label>Issued<input type="date" value={form.issuedAt} onChange={e => setForm({ ...form, issuedAt: e.target.value })} /></label>
       <label>Expires<input type="date" value={form.expiresAt} onChange={e => setForm({ ...form, expiresAt: e.target.value })} /></label>
       <div className="modal-footer" style={{ gridColumn: '1 / -1' }}>

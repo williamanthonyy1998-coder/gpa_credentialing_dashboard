@@ -19,7 +19,16 @@ export default function Login() {
       const r = await api.post('/auth/login', { email, password });
       localStorage.setItem('credentialing_token', r.data.token);
       localStorage.setItem('credentialing_user', JSON.stringify(r.data.user));
-      nav('/');
+      const tenants = r.data.tenants || [];
+      localStorage.setItem('credentialing_tenants', JSON.stringify(tenants));
+      const usable = tenants.filter(t => t.usable);
+      const selected = r.data.defaultTenantId || (usable.length === 1 ? usable[0].tenantId : '');
+      if (selected) localStorage.setItem('credentialing_tenant_id', selected);
+      else localStorage.removeItem('credentialing_tenant_id');
+      const role = r.data.user?.role;
+      if (role === 'EXTERNAL_PROVIDER') nav('/provider-portal');
+      else if (role === 'CLIENT_USER') nav('/portal');
+      else nav('/');
     } catch (err) {
       setError(err.response?.data?.error || 'Could not connect to the API. Check that the backend is running.');
     } finally {
