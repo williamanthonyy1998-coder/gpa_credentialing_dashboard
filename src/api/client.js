@@ -9,8 +9,16 @@ function readCookie(name) {
   return match ? decodeURIComponent(match[1]) : '';
 }
 
+/** Collapse accidental `//api` from trailing-slash VITE_API_URL values. */
+export function resolveApiBaseUrl(raw = import.meta.env.VITE_API_URL) {
+  const fallback = 'http://localhost:4000/api';
+  const value = String(raw || fallback).trim();
+  if (!value) return fallback;
+  return value.replace(/([^:]\/)\/+/g, '$1').replace(/\/+$/, '') || fallback;
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:4000/api',
+  baseURL: resolveApiBaseUrl(),
   timeout: 20000,
   withCredentials: true
 });

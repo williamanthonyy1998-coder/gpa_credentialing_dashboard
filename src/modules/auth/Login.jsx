@@ -23,7 +23,13 @@ export default function Login() {
       else if (role === 'CLIENT_USER') nav('/portal');
       else nav('/');
     } catch (err) {
-      setError(err.response?.data?.error || 'Could not connect to the API. Check that the backend is running.');
+      const apiMessage = err.response?.data?.error;
+      if (apiMessage) setError(typeof apiMessage === 'string' ? apiMessage : 'Sign-in failed');
+      else if (err.code === 'ERR_NETWORK' || !err.response) {
+        setError('Could not connect to the API. Check that the backend is running and CORS allows this origin.');
+      } else {
+        setError('Sign-in failed. Please try again.');
+      }
     } finally {
       setBusy(false);
     }
