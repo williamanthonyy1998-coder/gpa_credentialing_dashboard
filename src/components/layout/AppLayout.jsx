@@ -8,7 +8,7 @@ import GlobalSearch from '../common/GlobalSearch';
 import { ShellProvider, useShell } from './ShellContext';
 import { NavigationHistoryProvider } from '../../navigation/NavigationHistoryContext';
 import { roleLabel } from '../../utils/format';
-import { setActiveTenantId } from '../../api/client';
+import api, { getActiveTenantId, isPlatformAccessEnabled, setActiveTenantId, setPlatformAccess } from '../../api/client';
 
 function ShellChrome({ children }) {
   const [mobile, setMobile] = useState(false);
@@ -19,6 +19,7 @@ function ShellChrome({ children }) {
   const [tenants, setTenants] = useState(() => JSON.parse(localStorage.getItem('credentialing_tenants') || '[]'));
   const [tenantId, setTenantId] = useState(() => localStorage.getItem('credentialing_tenant_id') || '');
   const [tenantEpoch, setTenantEpoch] = useState(0);
+  const [platformClients, setPlatformClients] = useState([]);
 
   useEffect(() => {
     const fn = () => nav('/login');
@@ -37,13 +38,58 @@ function ShellChrome({ children }) {
   }, []);
 
   useEffect(() => {
-    setUser(JSON.parse(localStorage.getItem('credentialing_user') || '{}'));
+    const nextUser = JSON.parse(localStorage.getItem('credentialing_user') || '{}');
+    setUser(nextUser);
     setTenants(JSON.parse(localStorage.getItem('credentialing_tenants') || '[]'));
     setTenantId(localStorage.getItem('credentialing_tenant_id') || '');
     setMobile(false);
+    // Cover sessions created before platform-access was persisted on login.
+    if (nextUser?.role === 'ADMIN' && !isPlatformAccessEnabled()) {
+      setPlatformAccess(true);
+    }
   }, [location.pathname]);
 
-  const usableTenants = useMemo(() => (tenants || []).filter(t => t.usable), [tenants]);
+  useEffect(() => {
+    if (user?.role !== 'ADMIN') {
+      setPlatformClients([]);
+      return undefined;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await api.get('/clients', { params: { status: 'ACTIVE', pageSize: 100 } });
+        if (cancelled) return;
+        const rows = (r.data?.data || []).map((c) => ({
+          tenantId: c.id,
+          usable: true,
+          platform: true,
+          tenant: { id: c.id, name: c.name, slug: c.slug, status: c.status }
+        }));
+        setPlatformClients(rows);
+        const current = getActiveTenantId();
+        if (!current && rows.length === 1) {
+          setActiveTenantId(rows[0].tenantId);
+          setTenantId(rows[0].tenantId);
+        }
+      } catch {
+        if (!cancelled) setPlatformClients([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.role]);
+
+  const usableTenants = useMemo(() => {
+    const memberships = (tenants || []).filter(t => t.usable);
+    if (user?.role !== 'ADMIN' || !platformClients.length) return memberships;
+    const byId = new Map();
+    for (const t of platformClients) byId.set(t.tenantId, t);
+    // Prefer membership metadata when the admin also belongs to the tenant.
+    for (const t of memberships) byId.set(t.tenantId, { ...byId.get(t.tenantId), ...t, usable: true });
+    return Array.from(byId.values()).sort((a, b) =>
+      String(a.tenant?.name || a.tenantId).localeCompare(String(b.tenant?.name || b.tenantId))
+    );
+  }, [tenants, platformClients, user?.role]);
+
   const activeTenant = usableTenants.find(t => t.tenantId === tenantId) || usableTenants[0];
 
   function onTenantChange(e) {

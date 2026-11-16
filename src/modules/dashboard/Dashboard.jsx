@@ -5,7 +5,7 @@ import {
   CreditCard, FileWarning, Gift, Inbox, Landmark, ListTodo, MapPin, RefreshCw, ShieldCheck,
   Stethoscope, UserCheck, UserMinus, Users
 } from 'lucide-react';
-import api from '../../api/client';
+import api, { getActiveTenantId } from '../../api/client';
 import StatCard from '../../components/common/StatCard';
 import { fmt, todayLabel } from '../../utils/format';
 
@@ -51,18 +51,35 @@ export default function Dashboard() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [tenantId, setTenantId] = useState(() => getActiveTenantId());
   const user = JSON.parse(localStorage.getItem('credentialing_user') || '{}');
   const hour = new Date().getHours();
   const greet = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
 
-  async function load() {
+  async function load(activeTenantId = getActiveTenantId()) {
+    if (!activeTenantId) {
+      setData(null);
+      setError('');
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError('');
     try { setData((await api.get('/dashboard')).data); }
     catch (e) { setError(e.response?.data?.error || 'Unable to load dashboard.'); }
     finally { setLoading(false); }
   }
-  useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    const onTenant = () => {
+      const next = getActiveTenantId();
+      setTenantId(next);
+      load(next);
+    };
+    window.addEventListener('credentialing:tenant-changed', onTenant);
+    load(tenantId);
+    return () => window.removeEventListener('credentialing:tenant-changed', onTenant);
+  }, []);
 
   const m = data?.metrics || {};
   const v = (n) => (loading ? '—' : (n ?? 0));
@@ -75,9 +92,15 @@ export default function Dashboard() {
   const taskQueue = data?.tasks || [];
   const openCases = data?.cases || [];
   const openEnrollments = data?.enrollments || [];
+  const needsTenant = !tenantId;
 
   return (
     <div className="page dash-page">
+      {needsTenant && (
+        <div className="error banner" role="status">
+          Select a client account in the top bar to load this dashboard.
+        </div>
+      )}
       {error && <div className="error banner">{error}</div>}
 
       <section className="dash-hero">

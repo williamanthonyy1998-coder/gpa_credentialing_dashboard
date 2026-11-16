@@ -59,6 +59,20 @@ export function setActiveTenantId(tenantId) {
   }
 }
 
+/** Platform ADMIN elevated mode — backend still requires X-Tenant-Id for tenant-scoped APIs. */
+export function setPlatformAccess(enabled) {
+  if (enabled) localStorage.setItem('credentialing_platform_access', '1');
+  else localStorage.removeItem('credentialing_platform_access');
+}
+
+export function isPlatformAccessEnabled() {
+  return localStorage.getItem('credentialing_platform_access') === '1';
+}
+
+export function getActiveTenantId() {
+  return localStorage.getItem('credentialing_tenant_id') || '';
+}
+
 export function clearAuthStorage() {
   // Never persist JWT. Clear non-sensitive workspace prefs only.
   localStorage.removeItem('credentialing_token');
@@ -79,6 +93,8 @@ export function persistSessionUser(user, tenants, defaultTenantId) {
   const selected = defaultTenantId || (usable.length === 1 ? usable[0].tenantId : '');
   if (selected) localStorage.setItem('credentialing_tenant_id', selected);
   else localStorage.removeItem('credentialing_tenant_id');
+  // Platform ADMIN may operate on any ACTIVE tenant via X-Platform-Access + X-Tenant-Id.
+  setPlatformAccess(user?.role === 'ADMIN');
   // Explicitly scrub any legacy JWT copies.
   localStorage.removeItem('credentialing_token');
   try { sessionStorage.removeItem('credentialing_token'); } catch { /* ignore */ }
