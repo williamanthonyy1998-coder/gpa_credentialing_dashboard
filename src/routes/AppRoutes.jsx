@@ -3,6 +3,8 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout';
 import RoleGuard, { GPA_ADMIN_ROLES, GPA_OPS_ROLES, GPA_STAFF_ROLES } from '../components/auth/RoleGuard';
 import Login from '../modules/auth/Login';
+import ForgotPassword from '../modules/auth/ForgotPassword';
+import ResetPassword from '../modules/auth/ResetPassword';
 import AcceptInvitation from '../modules/auth/AcceptInvitation';
 import AcceptProviderInvitation from '../modules/auth/AcceptProviderInvitation';
 import Dashboard from '../modules/dashboard/Dashboard';
@@ -36,12 +38,16 @@ import ProviderHistory from '../modules/providerPortal/ProviderHistory';
 import ProviderCredentialingProfile from '../modules/providerPortal/ProviderCredentialingProfile';
 import PortalCredentialingReadiness from '../modules/portal/PortalCredentialingReadiness';
 import CredentialingQaDashboard from '../modules/credentialing/CredentialingQaDashboard';
+import AutomationPage from '../modules/automation/AutomationPage';
+import CredentialExpirationCalendar from '../modules/automation/CredentialExpirationCalendar';
+import NotificationPreferencesPage from '../modules/notifications/NotificationPreferencesPage';
+import PortalWorkflowSummary from '../modules/portal/PortalWorkflowSummary';
 import { config } from '../config/resources';
 
 const GENERIC_RECORD_TYPES = Object.keys(config).filter(t => t !== 'enrollments');
 
 function Protected({ children }) {
-  return localStorage.getItem('credentialing_token') ? children : <Navigate to="/login" replace />;
+  return localStorage.getItem('credentialing_user') ? children : <Navigate to="/login" replace />;
 }
 
 function guard(allow, element) {
@@ -52,6 +58,8 @@ export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/accept-invitation/:token" element={<AcceptInvitation />} />
       <Route path="/accept-provider-invitation/:token" element={<AcceptProviderInvitation />} />
       <Route
@@ -68,6 +76,8 @@ export default function AppRoutes() {
                 <Route path="/portal/provider-intakes" element={guard(['CLIENT_USER'], <PortalProviderIntakes />)} />
                 <Route path="/portal/provider-intakes/:id" element={guard(['CLIENT_USER'], <PortalProviderIntakeDetail />)} />
                 <Route path="/portal/credentialing-readiness" element={guard(['CLIENT_USER'], <PortalCredentialingReadiness />)} />
+                <Route path="/portal/workflow" element={guard(['CLIENT_USER'], <PortalWorkflowSummary />)} />
+                <Route path="/notification-preferences" element={guard([...GPA_STAFF_ROLES, 'CLIENT_USER'], <NotificationPreferencesPage />)} />
                 <Route path="/provider-portal" element={guard(['EXTERNAL_PROVIDER'], <ProviderDashboard />)} />
                 <Route path="/provider-portal/intakes" element={guard(['EXTERNAL_PROVIDER'], <ProviderIntakeList />)} />
                 <Route path="/provider-portal/intakes/:id" element={guard(['EXTERNAL_PROVIDER'], <ProviderIntakeDetail />)} />
@@ -88,6 +98,8 @@ export default function AppRoutes() {
                 <Route path="/employees" element={guard(GPA_ADMIN_ROLES, <EmployeesPage />)} />
                 <Route path="/enrollments" element={guard([...GPA_STAFF_ROLES, 'CLIENT_USER'], <EnrollmentsPage />)} />
                 <Route path="/revalidation-ops" element={guard(GPA_OPS_ROLES, <RevalidationOpsPage />)} />
+                <Route path="/automation" element={guard(GPA_OPS_ROLES, <AutomationPage />)} />
+                <Route path="/automation/calendar" element={guard(GPA_OPS_ROLES, <CredentialExpirationCalendar />)} />
                 <Route path="/intake" element={guard(GPA_OPS_ROLES, <IntakePage />)} />
                 <Route path="/directories" element={guard(GPA_STAFF_ROLES, <ReferenceDataHub />)} />
                 <Route path="/directories/quality" element={guard(GPA_OPS_ROLES, <DirectoryQualityPage />)} />

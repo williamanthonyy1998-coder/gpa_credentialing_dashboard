@@ -57,6 +57,8 @@ export default function PortalDashboard() {
               <Link className="secondary" to="/portal/organizations">Organizations</Link>
               <Link className="secondary" to="/portal/provider-intakes">Provider intakes</Link>
               <Link className="secondary" to="/portal/credentialing-readiness">Credentialing readiness</Link>
+              <Link className="secondary" to="/portal/workflow">Enrollment workflow</Link>
+              <Link className="secondary" to="/notification-preferences">Notification preferences</Link>
               <Link className="secondary" to="/organizations">Full directory</Link>
             </div>
           </section>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ShieldCheck } from 'lucide-react';
-import api from '../../api/client';
+import api, { persistSessionUser } from '../../api/client';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -17,14 +17,7 @@ export default function Login() {
     setError('');
     try {
       const r = await api.post('/auth/login', { email, password });
-      localStorage.setItem('credentialing_token', r.data.token);
-      localStorage.setItem('credentialing_user', JSON.stringify(r.data.user));
-      const tenants = r.data.tenants || [];
-      localStorage.setItem('credentialing_tenants', JSON.stringify(tenants));
-      const usable = tenants.filter(t => t.usable);
-      const selected = r.data.defaultTenantId || (usable.length === 1 ? usable[0].tenantId : '');
-      if (selected) localStorage.setItem('credentialing_tenant_id', selected);
-      else localStorage.removeItem('credentialing_tenant_id');
+      persistSessionUser(r.data.user, r.data.tenants, r.data.defaultTenantId);
       const role = r.data.user?.role;
       if (role === 'EXTERNAL_PROVIDER') nav('/provider-portal');
       else if (role === 'CLIENT_USER') nav('/portal');
@@ -72,6 +65,9 @@ export default function Login() {
         </label>
         {error && <div className="error" role="alert">{error}</div>}
         <button className="primary full" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
+        <p className="muted" style={{ marginTop: '0.75rem' }}>
+          <Link to="/forgot-password">Forgot password?</Link>
+        </p>
       </form>
     </div>
   );

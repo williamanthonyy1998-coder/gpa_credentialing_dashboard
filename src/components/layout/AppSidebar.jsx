@@ -16,6 +16,7 @@ const WORKSPACE_LINKS = [
   { to: '/enrollments', label: 'Enrollments', icon: CreditCard },
   { to: '/intake', label: 'Intake', icon: Inbox },
   { to: '/tasks', label: 'Tasks', icon: CheckSquare },
+  { to: '/automation', label: 'Workflow Automation', icon: Activity },
   { to: '/employees', label: 'Employees & HR', icon: Users },
   { to: '/audit', label: 'Activity & Audit', icon: Activity }
 ];
@@ -26,6 +27,7 @@ const PORTAL_LINKS = [
   { to: '/portal/users', label: 'Users & invitations', icon: Users },
   { to: '/portal/organizations', label: 'Organizations', icon: Landmark },
   { to: '/portal/provider-intakes', label: 'Provider intakes', icon: Inbox },
+  { to: '/portal/workflow', label: 'Enrollment workflow', icon: CreditCard },
   { to: '/organizations', label: 'Full directory', icon: FolderOpen },
   { to: '/credentials', label: 'Credentials', icon: FileText },
   { to: '/enrollments', label: 'Enrollments', icon: CreditCard }
@@ -78,6 +80,7 @@ const OPERATIONS_LINKS = [
   { to: '/directories', label: 'Reference Data', icon: FolderOpen },
   { to: '/directories/quality', label: 'Directory Quality', icon: Activity },
   { to: '/credentialing-qa', label: 'Credentialing QA', icon: ShieldCheck },
+  { to: '/automation', label: 'Workflow Automation', icon: Activity },
   { to: '/directories/billingEntities', label: 'Billing Entities', icon: Landmark },
   { to: '/tasks', label: 'Tasks', icon: CheckSquare },
   { to: '/audit', label: 'Audit Log', icon: Activity },

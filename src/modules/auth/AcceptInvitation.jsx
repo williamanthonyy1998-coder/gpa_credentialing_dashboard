@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import api, { setActiveTenantId } from '../../api/client';
+import api, { persistSessionUser } from '../../api/client';
 
 export default function AcceptInvitation() {
   const { token } = useParams();
@@ -10,7 +10,6 @@ export default function AcceptInvitation() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: '', password: '', confirm: '' });
-  const existingToken = localStorage.getItem('credentialing_token');
   const existingUser = JSON.parse(localStorage.getItem('credentialing_user') || 'null');
 
   useEffect(() => {
@@ -44,10 +43,7 @@ export default function AcceptInvitation() {
         name: form.name,
         password: form.password
       });
-      localStorage.setItem('credentialing_token', r.data.token);
-      localStorage.setItem('credentialing_user', JSON.stringify(r.data.user));
-      localStorage.setItem('credentialing_tenants', JSON.stringify(r.data.tenants || []));
-      setActiveTenantId(r.data.defaultTenantId);
+      persistSessionUser(r.data.user, r.data.tenants, r.data.defaultTenantId);
       nav(r.data.redirectTo || '/portal', { replace: true });
     } catch (err) {
       setError(err.response?.data?.error || 'Could not accept invitation');
@@ -61,8 +57,7 @@ export default function AcceptInvitation() {
     setError('');
     try {
       const r = await api.post(`/invitations/${encodeURIComponent(token)}/accept-authenticated`);
-      localStorage.setItem('credentialing_tenants', JSON.stringify(r.data.tenants || []));
-      setActiveTenantId(r.data.tenantId);
+      persistSessionUser(existingUser, r.data.tenants, r.data.tenantId);
       nav(r.data.redirectTo || '/portal', { replace: true });
     } catch (err) {
       setError(err.response?.data?.error || 'Could not accept invitation');
@@ -86,7 +81,7 @@ export default function AcceptInvitation() {
             </p>
             {info.userExists ? (
               <div>
-                {existingToken && existingUser?.email?.toLowerCase() === info.email.toLowerCase() ? (
+                {existingUser?.email?.toLowerCase() === info.email.toLowerCase() ? (
                   <button type="button" className="primary" disabled={saving} onClick={acceptAuthenticated}>
                     {saving ? 'Accepting…' : 'Accept with current session'}
                   </button>

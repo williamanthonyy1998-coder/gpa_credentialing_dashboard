@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   CheckSquare, CreditCard, FileText, Landmark, MapPin, RefreshCw,
-  ShieldCheck, Stethoscope, ClipboardCheck, Users
+  ShieldCheck, Stethoscope, ClipboardCheck, Users, AlertTriangle
 } from 'lucide-react';
 import api from '../../api/client';
 import { sectionResource, organizationSections } from '../../config/resources';
@@ -10,9 +10,10 @@ import StatusBadge from '../../components/common/StatusBadge';
 import BackButton from '../../components/common/BackButton';
 import AppBreadcrumbs from '../../components/common/AppBreadcrumbs';
 import RecordPage from '../records/RecordPage';
-import EmployeesPage from '../employees/EmployeesPage';
 import AuditPage from '../audit/AuditPage';
 import EnrollmentsPage from '../enrollments/EnrollmentsPage';
+import OrganizationEmployeesPanel from './OrganizationEmployeesPanel';
+import OrganizationPayersPanel from './OrganizationPayersPanel';
 import { LIST_KEYS } from '../../navigation/listReturn';
 
 const MANAGEMENT_CARDS = [
@@ -36,8 +37,8 @@ const MANAGEMENT_CARDS = [
   },
   {
     key: 'payers',
-    label: 'Payer Directory',
-    description: 'Browse payer relationships used across this organization.',
+    label: 'Payer Participation',
+    description: 'Manage organization–payer contracts and participation status.',
     Icon: ShieldCheck
   },
   {
@@ -61,7 +62,7 @@ const MANAGEMENT_CARDS = [
   {
     key: 'employees',
     label: 'Employees & HR',
-    description: 'Manage employees and HR records for this organization.',
+    description: 'Assign employees and manage organization HR roster.',
     Icon: Users
   },
   {
@@ -111,6 +112,21 @@ function InfoField({ label, value }) {
 function OrganizationOverview({ org, stats, id }) {
   const nav = useNavigate();
   const displayName = org?.dba || org?.legalName || 'Organization';
+
+  const snapshot = [
+    { label: 'Total employees', value: stats.employeesTotal, to: 'employees' },
+    { label: 'Active employees', value: stats.employeesActive, to: 'employees' },
+    { label: 'Payer relationships', value: stats.payersTotal, to: 'payers' },
+    { label: 'Active contracted payers', value: stats.payersActive, to: 'payers' },
+    { label: 'Contracting / pending', value: stats.payersContracting, to: 'payers' },
+    { label: 'Upcoming renewals (90d)', value: stats.payersRenewal, to: 'payers' },
+    { label: 'Practices', value: stats.practices, to: 'practices' },
+    { label: 'Facilities', value: stats.facilities, to: 'facilities' },
+    { label: 'Providers', value: stats.providers, to: 'providers' },
+    { label: 'Active enrollments', value: stats.enrollmentsActive, to: 'enrollments' },
+    { label: 'Pending credentialing', value: stats.casesPending, to: 'cases' },
+    { label: 'Overdue tasks', value: stats.tasksOverdue, to: 'tasks' }
+  ];
 
   return (
     <div className="org-overview-content">
@@ -170,7 +186,7 @@ function OrganizationOverview({ org, stats, id }) {
           <div>
             <h3>Organization-centered records</h3>
             <p>
-              Practices, providers, facilities, and payers connect to this organization through shared master
+              Practices, providers, facilities, and payer participation connect to this organization through shared master
               records and affiliations. Provider affiliations reuse the same provider profiles across the
               organization without creating duplicate records. Facilities and practices remain linked through
               the organization context used by enrollments, credentialing cases, documents, and tasks.
@@ -183,22 +199,21 @@ function OrganizationOverview({ org, stats, id }) {
         <div className="panel-heading">
           <div>
             <h2>Organization Snapshot</h2>
-            <p>Live counts from records currently linked to this organization.</p>
+            <p>Live counts from database records linked to this organization.</p>
           </div>
         </div>
         <div className="org-snapshot-grid">
-          <div className="org-snapshot-item">
-            <span>Total practices</span>
-            <b>{stats.practices ?? 0}</b>
-          </div>
-          <div className="org-snapshot-item">
-            <span>Total facilities</span>
-            <b>{stats.facilities ?? 0}</b>
-          </div>
-          <div className="org-snapshot-item">
-            <span>Total provider affiliations</span>
-            <b>{stats.providerOrganizations ?? 0}</b>
-          </div>
+          {snapshot.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              className="org-snapshot-item"
+              onClick={() => nav(`/organizations/${id}/${item.to}`)}
+            >
+              <span>{item.label}</span>
+              <b>{item.value ?? 0}</b>
+            </button>
+          ))}
         </div>
       </section>
     </div>
@@ -208,6 +223,7 @@ function OrganizationOverview({ org, stats, id }) {
 export default function OrganizationWorkspace() {
   const { id } = useParams();
   const location = useLocation();
+  const nav = useNavigate();
   const [org, setOrg] = useState(null);
   const [stats, setStats] = useState({});
   const [error, setError] = useState('');
@@ -221,11 +237,8 @@ export default function OrganizationWorkspace() {
     try {
       const found = (await api.get(`/organizations/${id}`)).data;
       setOrg(found);
-      const resources = ['practices', 'facilities', 'providerOrganizations', 'enrollments', 'documents', 'cases'];
-      const results = await Promise.all(
-        resources.map(r => api.get(`/${r}`, { params: { limit: 100, organizationId: id } }).catch(() => ({ data: [] })))
-      );
-      setStats(Object.fromEntries(resources.map((r, i) => [r, results[i].data.length])));
+      const summary = (await api.get(`/organizations/${id}/workspace-summary`)).data;
+      setStats(summary || {});
     } catch (e) {
       setError(e.response?.data?.error || e.message || 'Could not load organization workspace.');
     } finally {
@@ -245,12 +258,14 @@ export default function OrganizationWorkspace() {
   ];
 
   const kpiCards = [
-    ['Practices', stats.practices, Landmark],
-    ['Facilities', stats.facilities, MapPin],
-    ['Provider Affiliations', stats.providerOrganizations, Stethoscope],
-    ['Payer Enrollments', stats.enrollments, CreditCard],
-    ['Credentialing Cases', stats.cases, ClipboardCheck],
-    ['Documents', stats.documents, FileText]
+    ['Employees', stats.employeesActive, Users, 'employees'],
+    ['Payers (active)', stats.payersActive, ShieldCheck, 'payers'],
+    ['Practices', stats.practices, Landmark, 'practices'],
+    ['Facilities', stats.facilities, MapPin, 'facilities'],
+    ['Providers', stats.providers, Stethoscope, 'providers'],
+    ['Active enrollments', stats.enrollmentsActive, CreditCard, 'enrollments'],
+    ['Pending cases', stats.casesPending, ClipboardCheck, 'cases'],
+    ['Overdue tasks', stats.tasksOverdue, AlertTriangle, 'tasks']
   ];
 
   return (
@@ -290,12 +305,17 @@ export default function OrganizationWorkspace() {
       {!error && (
         <>
           <div className="org-stat-grid">
-            {kpiCards.map(([label, value, Icon]) => (
-              <div className="org-stat" key={label}>
+            {kpiCards.map(([label, value, Icon, key]) => (
+              <button
+                type="button"
+                className="org-stat"
+                key={label}
+                onClick={() => nav(`/organizations/${id}/${key}`)}
+              >
                 <span className="org-stat-icon"><Icon size={18} strokeWidth={1.75} /></span>
                 <span className="org-stat-label">{label}</span>
                 <b>{loading ? '—' : value ?? 0}</b>
-              </div>
+              </button>
             ))}
           </div>
 
@@ -304,9 +324,19 @@ export default function OrganizationWorkspace() {
               {section === 'overview' && <OrganizationOverview org={org} stats={stats} id={id} />}
               {section === 'profile' && <OrganizationProfile org={org} />}
               {section === 'audit' && <AuditPage organizationId={id} />}
-              {section === 'employees' && <EmployeesPage organizationId={id} />}
+              {section === 'employees' && (
+                <OrganizationEmployeesPanel organizationId={id} orgName={title} />
+              )}
+              {section === 'payers' && (
+                <OrganizationPayersPanel organizationId={id} orgName={title} />
+              )}
               {section === 'enrollments' && <EnrollmentsPage organizationId={id} />}
-              {section !== 'overview' && section !== 'profile' && section !== 'audit' && section !== 'employees' && section !== 'enrollments' && (
+              {section !== 'overview'
+                && section !== 'profile'
+                && section !== 'audit'
+                && section !== 'employees'
+                && section !== 'payers'
+                && section !== 'enrollments' && (
                 <RecordPage
                   type={sectionResource[section] || 'providers'}
                   scopedId={id}

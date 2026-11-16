@@ -18,10 +18,12 @@ export async function apiLogin(request: APIRequestContext, email: string) {
   expect(res.ok(), `login failed for ${email}: ${res.status()}`).toBeTruthy();
   const body = await res.json();
   return body as {
-    token: string;
+    /** Present only when E2E_SAFE_DATABASE bypass is active on the API. */
+    token?: string;
     user: { id: string; email: string; role: string; name: string };
     tenants?: Array<{ tenantId: string; usable: boolean; tenant?: { name: string } }>;
     defaultTenantId?: string;
+    csrfToken?: string;
   };
 }
 
@@ -50,28 +52,33 @@ export async function setAuthStorage(
   auth: Awaited<ReturnType<typeof apiLogin>>,
   tenantId?: string
 ) {
+  // Cookie session is authoritative. Persist non-sensitive workspace prefs only.
   await page.addInitScript(
-    ({ token, user, tenants, tenantId: tid }) => {
-      localStorage.setItem('credentialing_token', token);
+    ({ user, tenants, tenantId: tid, csrf }) => {
       localStorage.setItem('credentialing_user', JSON.stringify(user));
       localStorage.setItem('credentialing_tenants', JSON.stringify(tenants || []));
+      localStorage.removeItem('credentialing_token');
       if (tid) localStorage.setItem('credentialing_tenant_id', tid);
       else localStorage.removeItem('credentialing_tenant_id');
+      if (csrf) {
+        try { sessionStorage.setItem('credentialing_csrf', csrf); } catch { /* ignore */ }
+      }
     },
     {
-      token: auth.token,
       user: auth.user,
       tenants: auth.tenants || [],
-      tenantId: tenantId || auth.defaultTenantId || ''
+      tenantId: tenantId || auth.defaultTenantId || '',
+      csrf: auth.csrfToken || ''
     }
   );
 }
 
-export function authHeaders(token: string, tenantId?: string) {
+export function authHeaders(token: string | undefined, tenantId?: string, csrf?: string) {
   const h: Record<string, string> = {
-    Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json'
   };
+  if (token) h.Authorization = `Bearer ${token}`;
   if (tenantId) h['X-Tenant-Id'] = tenantId;
+  if (csrf) h['X-CSRF-Token'] = csrf;
   return h;
 }

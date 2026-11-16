@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import api from '../../api/client';
+import api, { persistSessionUser } from '../../api/client';
 
 export default function AcceptProviderInvitation() {
   const { token } = useParams();
@@ -10,7 +10,6 @@ export default function AcceptProviderInvitation() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: '', password: '', confirm: '' });
-  const existingToken = localStorage.getItem('credentialing_token');
   const existingUser = JSON.parse(localStorage.getItem('credentialing_user') || 'null');
 
   useEffect(() => {
@@ -42,10 +41,7 @@ export default function AcceptProviderInvitation() {
         name: form.name,
         password: form.password
       });
-      localStorage.setItem('credentialing_token', r.data.token);
-      localStorage.setItem('credentialing_user', JSON.stringify(r.data.user));
-      localStorage.setItem('credentialing_tenants', JSON.stringify([]));
-      localStorage.removeItem('credentialing_tenant_id');
+      persistSessionUser(r.data.user, [], null);
       nav(r.data.redirectTo || '/provider-portal', { replace: true });
     } catch (err) {
       setError(err.response?.data?.error || 'Could not accept invitation');
@@ -81,7 +77,7 @@ export default function AcceptProviderInvitation() {
               Invitation emailed to <b>{info.email}</b>.
             </p>
             {info.userExists ? (
-              existingToken && existingUser?.email?.toLowerCase() === info.email.toLowerCase() ? (
+              existingUser?.email?.toLowerCase() === info.email.toLowerCase() ? (
                 <button type="button" className="primary" disabled={saving} onClick={acceptAuthenticated}>
                   {saving ? 'Accepting…' : 'Accept with current session'}
                 </button>

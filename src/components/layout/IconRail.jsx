@@ -4,7 +4,7 @@ import {
   Building2, Calendar, ClipboardList, FolderOpen, Gauge, Globe2, LogOut, Settings, Shield, Users
 } from 'lucide-react';
 
-import { clearAuthStorage } from '../../api/client';
+import { logoutSession } from '../../api/client';
 
 const GPA_ITEMS = [
   {
@@ -35,9 +35,9 @@ const GPA_ITEMS = [
       || p.startsWith('/providerOrganizations')
     )
   },
-  { to: '/tasks', icon: ClipboardList, title: 'Tasks', match: (p) => p.startsWith('/tasks') },
+  { to: '/tasks', icon: ClipboardList, title: 'Tasks', match: (p) => p.startsWith('/tasks') || p.startsWith('/automation') },
   { to: '/cases', icon: Shield, title: 'Credentialing', match: (p) => p.startsWith('/cases') },
-  { to: '/enrollments', icon: Calendar, title: 'Enrollments', match: (p) => p.startsWith('/enrollments') || p.startsWith('/plans') },
+  { to: '/enrollments', icon: Calendar, title: 'Enrollments', match: (p) => p.startsWith('/enrollments') || p.startsWith('/plans') || p.startsWith('/revalidation-ops') },
   { to: '/payers', icon: Globe2, title: 'Payers', match: (p) => p.startsWith('/payers') },
   { to: '/credentials', icon: Building2, title: 'Credentials', match: (p) => p.startsWith('/credentials') },
   { to: '/employees', icon: Settings, title: 'Settings / HR', match: (p) => p.startsWith('/employees') || p.startsWith('/audit') }
@@ -117,8 +117,8 @@ export default function IconRail() {
   }, [isClient, isProvider, user.role]);
   const activeTo = resolveActiveTo(items, path);
 
-  function logout() {
-    clearAuthStorage();
+  async function logout() {
+    await logoutSession();
     nav('/login');
   }
 
